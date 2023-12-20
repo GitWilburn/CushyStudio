@@ -1,10 +1,10 @@
-import type { Widget, Widget_choice } from 'src/controls/Widget'
+import type { Widget, Widget_choice, Widget_choiceOpt } from 'src/controls/Widget'
 
 import { observer } from 'mobx-react-lite'
 import { SelectUI } from 'src/rsuite/SelectUI'
 import { WidgetUI } from './WidgetUI'
 
-export const WidgetChoiceUI = observer(function WidgetChoiceUI_(p: { widget: Widget_choice<{ [key: string]: Widget }> }) {
+export const WidgetChoiceUI = observer(function WidgetChoiceUI_(p: { widget: Widget_choice<{ [key: string]: Widget }> | Widget_choiceOpt<{ [key: string]: Widget }> }) {
     const req = p.widget
     const choicesStr: string[] = Object.keys(req.state.values)
     const choiceSubReq = req.state.values[req.state.pick]
