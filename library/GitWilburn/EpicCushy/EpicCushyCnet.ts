@@ -75,19 +75,21 @@ app({
         // START IMAGE -------------------------------------------------------------------------------
         let { latent } = await run_latent({ flow, opts: p.latent, vae })
 
-        // CNETS -------------------------------------------------------------------------------        
+        // CNETS -------------------------------------------------------------------------------
+        const pre_cnet_positive = positive
+        const pre_cnet_negative = negative        
         if (p.controlnets) {
             const Cnet_args: Cnet_args = {
                 positive,
                 negative
             }
-            var cnet_out = run_cnet(flow,p.controlnets,Cnet_args)
-            positive = (await cnet_out).positive
-            negative = (await cnet_out).negative
+            var cnet_out = await run_cnet(flow,p.controlnets,Cnet_args)
+            positive = cnet_out.positive
+            negative = cnet_out.negative            
         }
 
         // FIRST PASS --------------------------------------------------------------------------------
-        const ctx_sampler: Ctx_sampler = {
+        let ctx_sampler: Ctx_sampler = {
             ckpt: ckptPos,
             clip: clipPos,
             vae,
@@ -98,8 +100,15 @@ app({
         }
         latent = run_sampler(flow, p.sampler, ctx_sampler).latent
 
+        if(p.controlnets && !p.controlnets.useControlnetConditioningForUpscalePassIfEnabled){
+            //it can sometimes be useful to only use the controlnets on the first pass. They can yield strange results when upscaling
+            ctx_sampler.positive = pre_cnet_positive,
+            ctx_sampler.negative = pre_cnet_negative
+        }
+
         // RECURSIVE PASS ----------------------------------------------------------------------------
         if (p.recursiveImgToImg) {
+
             for (let i = 0; i < p.recursiveImgToImg.loops; i++) {
                 latent = run_sampler(
                     flow,
