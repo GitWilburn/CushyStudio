@@ -1,8 +1,7 @@
-import type { ImageAndMask, Runtime, Widget_bool, Widget_enum, Widget_float, Widget_group, Widget_groupOpt, Widget_group_output, Widget_image, Widget_int } from 'src'
+import type { Runtime } from 'src'
 import type { FormBuilder } from 'src/controls/FormBuilder'
 import type { OutputFor } from 'library/CushyStudio/default/_prefabs'
 import type { ComfyWorkflowBuilder } from 'src/back/NodeBuilder';
-import { Image } from '../../../../src/widgets/misc/Image';
 
 // 🅿️ CNET UI -----------------------------------------------------------
 export const ui_cnet = (form: FormBuilder) => {    
@@ -223,19 +222,6 @@ export const run_cnet = async (
     }
    
     return { positive, negative }
-}
-
-export interface PreprocessorConfig {
-    ui: (form: FormBuilder) => any;  // Replace 'any' with more specific types as needed
-    run: (context: { runtime: Runtime; graph: ComfyWorkflowBuilder }, form: FormBuilder, params: { image: _IMAGE }) => { image: _IMAGE }; 
-}
-
-export function exposePreprocessor(config: PreprocessorConfig): any {
-    // Example implementation:
-    return {
-        ui: config.ui,
-        run: config.run
-    };
 }
 
 
