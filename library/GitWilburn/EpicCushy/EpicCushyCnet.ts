@@ -25,8 +25,9 @@ app({
         sampler: ui_sampler(ui),
         highResFix: ui_highresfix(ui, { activeByDefault: true }),
         controlnets: ui.groupOpt({
-            items: () => ({
-                ControlNets: ui.list({
+            label: 'ControlNet',
+            items: () => ({                
+                controlNetList: ui.list({
                     //
                     element: () =>
                         ui.group({
