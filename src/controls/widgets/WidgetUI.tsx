@@ -60,6 +60,7 @@ export const WidgetUI = observer(function WidgetUI_(p: { widget: R.Widget; focus
     if (widget instanceof R.Widget_color)              return <WidgetColorUI       widget={widget} />
     if (widget instanceof R.Widget_selectOne)          return <WidgetSelectOneUI   widget={widget} />
     if (widget instanceof R.Widget_choice)             return <WidgetChoiceUI      widget={widget} />
+    if (widget instanceof R.Widget_choiceOpt)          return <WidgetChoiceUI      widget={widget} />
     if (widget instanceof R.Widget_choices)            return <WidgetChoicesUI     widget={widget} />
     if (widget instanceof R.Widget_markdown)           return <WidgetMardownUI     widget={widget} />
     if (widget instanceof R.Widget_custom)             return <WidgetCustomUI      widget={widget} />

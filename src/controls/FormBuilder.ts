@@ -46,8 +46,7 @@ export class FormBuilder {
         new W.Widget_listExt(this, this.schema, { mode: 'timeline', ...p })
     regional = <const T extends W.Widget>(p: W.Widget_listExt_opts<T>) =>
         new W.Widget_listExt(this, this.schema, { mode: 'regional', ...p })
-    groupOpt = <const T extends { [key: string]: W.Widget }>(p: W.Widget_groupOpt_opts<T>) =>
-        new W.Widget_groupOpt(this, this.schema, p)
+    groupOpt = <const T extends { [key: string]: W.Widget }>(p: W.Widget_groupOpt_opts<T>) => new W.Widget_groupOpt(this, this.schema, p)
     group = <const T extends { [key: string]: W.Widget }>(p: W.Widget_group_opts<T>) => new W.Widget_group(this, this.schema, p)
     selectOne = <const T extends { id: string; label?: string }>(p: W.Widget_selectOne_opts<T>) =>
         new W.Widget_selectOne(this, this.schema, p)
@@ -55,6 +54,8 @@ export class FormBuilder {
         new W.Widget_selectMany(this, this.schema, p)
     choice = <const T extends { [key: string]: W.Widget }>(p: W.Widget_choice_opts<T>) =>
         new W.Widget_choice(this, this.schema, p)
+    choiceOpt = <const T extends { [key: string]: W.Widget }>(p: W.Widget_choiceOpt_opts<T>) =>
+        new W.Widget_choiceOpt(this, this.schema, p)
     choices = <const T extends { [key: string]: W.Widget }>(p: W.Widget_choices_opts<T>) =>
         new W.Widget_choices(this, this.schema, p)
 
@@ -96,6 +97,7 @@ export class FormBuilder {
         if (type === 'size') return new W.Widget_size(this, this.schema, input, serial)
         if (type === 'color') return new W.Widget_color(this, this.schema, input, serial)
         if (type === 'choice') return new W.Widget_choice(this, this.schema, input, serial)
+        if (type === 'choiceOpt') return new W.Widget_choiceOpt(this, this.schema, input, serial)
         if (type === 'choices') return new W.Widget_choices(this, this.schema, input, serial)
         if (type === 'markdown') return new W.Widget_markdown(this, this.schema, input, serial)
         if (type === 'custom') return new W.Widget_custom(this, this.schema, input, serial)
