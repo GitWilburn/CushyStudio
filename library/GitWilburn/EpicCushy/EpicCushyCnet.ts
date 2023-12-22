@@ -6,6 +6,7 @@ import { Ctx_sampler, run_sampler, ui_sampler } from 'library/CushyStudio/defaul
 import { ui_highresfix } from 'library/CushyStudio/default/_prefabs'
 import { output_demo_summary } from 'library/CushyStudio/default/_prefabs/prefab_markdown'
 import { ui_cnet, run_cnet } from 'library/GitWilburn/EpicCushy/_prefabs/prefab_cnet'
+import { Cnet_args } from './_prefabs/prefab_cnet';
 
 app({
     ui: (ui) => ({
@@ -24,20 +25,7 @@ app({
         latent: ui_latent(ui),
         sampler: ui_sampler(ui),
         highResFix: ui_highresfix(ui, { activeByDefault: true }),
-        controlnets: ui.groupOpt({
-            label: 'ControlNet',
-            items: () => ({                
-                controlNetList: ui.list({
-                    //
-                    element: () =>
-                        ui.group({
-                            items: () => ({
-                                Controlnet: ui_cnet(ui),
-                            }),
-                        }),
-                }),
-            }),
-        }),
+        controlnets: ui_cnet(ui),
         recursiveImgToImg: ui_recursive(ui),
         loop: ui.groupOpt({
             items: () => ({
@@ -82,18 +70,20 @@ app({
         let positive = x.conditionning
 
         const y = run_prompt(flow, { richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
-        const negative = y.conditionning
+        let negative = y.conditionning
 
         // START IMAGE -------------------------------------------------------------------------------
         let { latent } = await run_latent({ flow, opts: p.latent, vae })
 
-        // CNETS -------------------------------------------------------------------------------
-        const cnets = p.controlnets
-        if (cnets) {
-            for (const cnet of cnets.ControlNets) {
-                const result = await run_cnet({flow:flow,opts:cnet.Controlnet,positive:positive})
-                positive = result.positive
+        // CNETS -------------------------------------------------------------------------------        
+        if (p.controlnets) {
+            const Cnet_args: Cnet_args = {
+                positive,
+                negative
             }
+            var cnet_out = run_cnet(flow,p.controlnets,Cnet_args)
+            positive = (await cnet_out).positive
+            negative = (await cnet_out).negative
         }
 
         // FIRST PASS --------------------------------------------------------------------------------
