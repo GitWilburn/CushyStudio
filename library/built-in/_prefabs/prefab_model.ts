@@ -53,7 +53,7 @@ export const run_model = (
     if (otps.clipSkip) clip = graph.CLIPSetLastLayer({ clip, stop_at_clip_layer: -Math.abs(otps.clipSkip) })
 
     // 4. Optional FreeU
-    if (otps.freeU) ckpt = graph.FreeU({ model: ckpt })
+    if (otps.freeU) ckpt = graph.FreeU$_V2({ model: ckpt })
 
     return { ckpt, vae, clip }
 }

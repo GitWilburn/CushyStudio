@@ -2,20 +2,22 @@ import type { ImageAndMask, Runtime, Widget_bool, Widget_enum, Widget_float, Wid
 import type { FormBuilder } from 'src/controls/FormBuilder'
 import type { OutputFor } from 'library/CushyStudio/default/_prefabs'
 import type { ComfyWorkflowBuilder } from 'src/back/NodeBuilder';
+import { Image } from '../../../../src/widgets/misc/Image';
 
 // 🅿️ CNET UI -----------------------------------------------------------
 export const ui_cnet = (form: FormBuilder) => {    
     return form.groupOpt({
         label:'ControlNet',
         items: () =>({
+            useControlnetConditioningForUpscalePassIfEnabled:form.bool({default:false}),
             controlNetList: form.list({
                 //
                 element: () =>
                     form.choice({
                         label:'Pick=>',
                         items:() => ({
-                            OpenPose:subform_OpenPose(form),
-                            Canny:subform_Canny(form),                            
+                            OpenPose:ui_subform_OpenPose(form),
+                            Canny:ui_subform_Canny(form),                            
                         }),
                     })
                     
@@ -26,20 +28,25 @@ export const ui_cnet = (form: FormBuilder) => {
 
 // 🅿️ CNET COMMON FORM ===================================================
 export const cnet_ui_common = (form:FormBuilder)=> ({
-    image:form.image({}),
+    image:form.image({default:'cushy'}),
     strength:form.float({default:1,min:0,max:2,step:0.1}),
     startAtStepPercent:form.float({default:0,min:0,max:1,step:0.1}),
     endAtStepPercent:form.float({default:1,min:0,max:1,step:0.1}),
 })
 
+export const cnet_preprocessor_ui_common = (form:FormBuilder) => ({
+    saveProcessedImage:form.bool({default:false}),
+    resolution: form.int({ default: 512, min: 512, max: 1024, step: 512 }),
+})
+
 // 🅿️ OPEN POSE FORM ===================================================
-export const subform_OpenPose = (form: FormBuilder) => {    
+export const ui_subform_OpenPose = (form: FormBuilder) => {    
     return form.group({
         label:'Open Pose',
 
         items: () => ({
             ...cnet_ui_common(form),
-            preprocessor:subform_OpenPose_Preprocessor(form),
+            preprocessor:ui_subform_OpenPose_Preprocessor(form),
             cnet_model_name: form.enum({
                 enumName: 'Enum_ControlNetLoader_control_net_name',
                 default: 'control_v11p_sd15_openpose.pth',
@@ -50,14 +57,14 @@ export const subform_OpenPose = (form: FormBuilder) => {
     })
 }
 
-export const subform_OpenPose_Preprocessor = (form: FormBuilder) => {    
+export const ui_subform_OpenPose_Preprocessor = (form: FormBuilder) => {    
     return form.groupOpt({
         label:'Open Pose Preprocessor',
         items: () => ({
+            ...cnet_preprocessor_ui_common(form),
             detect_body: form.bool({ default: true }),
             detect_face: form.bool({ default: true }),
-            detect_hand: form.bool({ default: true }),
-            resolution: form.int({ default: 512, min: 512, max: 1024, step: 512 }),
+            detect_hand: form.bool({ default: true }),            
             useDWPose:form.bool({default:true}),
             bbox_detector: form.enum({
                 enumName: 'Enum_DWPreprocessor_bbox_detector',
@@ -78,12 +85,12 @@ export const subform_OpenPose_Preprocessor = (form: FormBuilder) => {
 }
 
 // 🅿️ Canny FORM ===================================================
-export const subform_Canny = (form: FormBuilder) => {    
+export const ui_subform_Canny = (form: FormBuilder) => {    
     return form.group({
         label:'Canny',
         items: () => ({
             ...cnet_ui_common(form),
-            preprocessor:subform_Canny_Preprocessor(form),
+            preprocessor:ui_subform_Canny_Preprocessor(form),
             cnet_model_name: form.enum({
                 enumName: 'Enum_ControlNetLoader_control_net_name',
                 default: 'control_v11p_sd15_canny.pth',
@@ -94,13 +101,13 @@ export const subform_Canny = (form: FormBuilder) => {
     })
 }
 
-export const subform_Canny_Preprocessor = (form: FormBuilder) => {    
+export const ui_subform_Canny_Preprocessor = (form: FormBuilder) => {    
     return form.groupOpt({
         label:'Canny Edge Preprocessor',
         items: () => ({
+            ...cnet_preprocessor_ui_common(form),
             lowThreshold: form.int({ default: 100, min: 0, max: 200, step: 10 }),
             highThreshold: form.int({ default: 200, min: 0, max: 400, step: 10 }),
-            resolution: form.int({ default: 512, min: 512, max: 1024, step: 512 }),
             // TODO: Add support for auto-modifying the resolution based on other form selections
             // TODO: Add support for auto-cropping   
         }),
@@ -148,7 +155,7 @@ export const run_cnet = async (
                 // PREPROCESSOR - CANNY ===========================================================
                 if(name.includes('canny'))
                 {
-                    const pp = <OutputFor<typeof subform_Canny_Preprocessor>>cnet.preprocessor
+                    const pp = <OutputFor<typeof ui_subform_Canny_Preprocessor>>cnet.preprocessor
                     if(pp != null)
                     {
                         image = graph.CannyEdgePreprocessor({
@@ -157,12 +164,16 @@ export const run_cnet = async (
                             high_threshold: pp.highThreshold,
                             resolution: pp.resolution,
                         })._IMAGE
+                        if(pp.saveProcessedImage)
+                            graph.SaveImage({ images: image,filename_prefix:'cnet\\canny\\' })
+                        else
+                            graph.PreviewImage({ images: image})
                     }
                 }
                 // PREPROCESSOR - POSE ===========================================================
                 else if(name.includes('pose'))
                 {
-                    const pp = <OutputFor<typeof subform_OpenPose_Preprocessor>>cnet.preprocessor
+                    const pp = <OutputFor<typeof ui_subform_OpenPose_Preprocessor>>cnet.preprocessor
                     if(pp != null)
                     {                        
                         if(pp.useDWPose)
@@ -187,7 +198,12 @@ export const run_cnet = async (
                                 resolution: pp.resolution,
                                 })._IMAGE
                         }
+                        if(pp.saveProcessedImage)
+                            graph.SaveImage({ images: image,filename_prefix:'cnet\\pose\\' })
+                        else
+                            graph.PreviewImage({ images: image})
                     }
+                    
                 }
             }             
             
