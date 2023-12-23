@@ -674,7 +674,7 @@ export class Runtime<FIELDS extends WidgetDict = any> {
                 return img2
             }
             if (ia.type === 'PaintImage') {
-                const img2 = this.nodes.Base64ImageInput({ bas64_image: ia.base64 })
+                const img2 = this.nodes.ETN$_LoadImageBase64({ image: ia.base64 })
                 // const img2 = this.nodes.LoadImage({ image: res.name as any })
                 // if (p?.joinImageWithAlpha) return this.nodes.JoinImageWithAlpha({ image: img2, alpha: img2 })
                 return img2 as any // 🔴
