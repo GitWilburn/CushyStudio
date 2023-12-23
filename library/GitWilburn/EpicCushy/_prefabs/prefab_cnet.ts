@@ -1,6 +1,6 @@
 import type { Runtime } from 'src'
 import type { FormBuilder } from 'src/controls/FormBuilder'
-import type { OutputFor } from 'library/CushyStudio/default/_prefabs'
+import type { OutputFor } from 'library/built-in/_prefabs/_prefabs'
 import type { ComfyWorkflowBuilder } from 'src/back/NodeBuilder';
 
 // 🅿️ CNET UI -----------------------------------------------------------
