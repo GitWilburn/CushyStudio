@@ -3,6 +3,7 @@ import type { FormBuilder } from 'src/controls/FormBuilder'
 import type { OutputFor } from 'library/built-in/_prefabs/_prefabs'
 import { run_cnet_openPose, ui_subform_OpenPose } from './prefab_cnet_openPose'
 import { run_cnet_canny, ui_subform_Canny } from './prefab_cnet_canny'
+import { run_cnet_Depth, ui_subform_Depth } from './prefab_cnet_depth'
 
 // 🅿️ CNET UI -----------------------------------------------------------
 export const ui_cnet = (form: FormBuilder) => {    
@@ -17,7 +18,8 @@ export const ui_cnet = (form: FormBuilder) => {
                         label:'Pick=>',
                         items:() => ({
                             OpenPose:ui_subform_OpenPose(form),
-                            Canny:ui_subform_Canny(form),                            
+                            Canny:ui_subform_Canny(form),
+                            Depth:ui_subform_Depth(form)                            
                         }),
                     })
                     
@@ -63,19 +65,27 @@ export const run_cnet = async (
         for(const cnet of cnetList){            
             let image: IMAGE
             let cnet_name: Enum_ControlNetLoader_control_net_name = 'control_v11p_sd15_canny.pth'
+            // CANNY ===========================================================
             if(cnet.Canny)
             {
                 const cnet_return_canny = await (run_cnet_canny(flow, cnet.Canny,cnet_args))
                 image = cnet_return_canny.image
                 cnet_name = cnet_return_canny.cnet_name
             }
-            // PREPROCESSOR - POSE ===========================================================
+            // POSE ===========================================================
             else if(cnet.OpenPose)
             {
                 const cnet_return_openPose = await (run_cnet_openPose(flow, cnet.OpenPose,cnet_args))
                 image = cnet_return_openPose.image
                 cnet_name = cnet_return_openPose.cnet_name                
-            }               
+            }
+            // DEPTH ===========================================================
+            else if(cnet.Depth)
+            {
+                const cnet_return_depth = await (run_cnet_Depth(flow, cnet.Depth,cnet_args))
+                image = cnet_return_depth.image
+                cnet_name = cnet_return_depth.cnet_name                
+            }                  
             
             // CONTROL NET APPLY ===========================================================
             const cnet_node = graph.ControlNetApplyAdvanced({
