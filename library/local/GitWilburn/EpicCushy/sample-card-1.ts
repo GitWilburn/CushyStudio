@@ -1,31 +1,62 @@
-import { run_latent, ui_latent } from 'library/CushyStudio/default/_prefabs/prefab_latent'
-import { run_model, ui_model } from 'library/CushyStudio/default/_prefabs/prefab_model'
-import { run_prompt } from 'library/CushyStudio/default/_prefabs/prefab_prompt'
-import { ui_recursive } from 'library/CushyStudio/default/_prefabs/prefab_recursive'
-import { Ctx_sampler, run_sampler, ui_sampler } from 'library/CushyStudio/default/_prefabs/prefab_sampler'
-import { ui_highresfix } from 'library/CushyStudio/default/_prefabs'
-import { output_demo_summary } from 'library/CushyStudio/default/_prefabs/prefab_markdown'
-import { ui_cnet, run_cnet } from 'library/GitWilburn/EpicCushy/_prefabs/prefab_cnet'
-import { Cnet_args } from './_prefabs/prefab_cnet';
+import { run_latent, ui_latent } from 'library/built-in/_prefabs/prefab_latent'
+import { run_model, ui_model } from 'library/built-in/_prefabs/prefab_model'
+import { run_prompt } from 'library/built-in/_prefabs/prefab_prompt'
+import { ui_recursive } from 'library/built-in/_prefabs/prefab_recursive'
+import { Ctx_sampler, run_sampler, ui_sampler } from 'library/built-in/_prefabs/prefab_sampler'
+import { ui_highresfix } from 'library/built-in/_prefabs/_prefabs'
+import { output_demo_summary } from 'library/built-in/_prefabs/prefab_markdown'
 
 app({
     ui: (ui) => ({
         positive: ui.prompt({
             default: {
                 tokens: [
-                    { type: 'text', text: 'cyberpunk, masterpiece, concept art, artgerm' },
+                    { type: 'text', text: 'masterpiece, tree ' },
+                    { type: 'wildcard', payload: 'color', version: 1 },
+                    { type: 'text', text: ' ' },
+                    { type: 'wildcard', payload: '3d_term', version: 1 },
+                    { type: 'text', text: ' ' },
+                    { type: 'wildcard', payload: 'adj_beauty', version: 1 },
+                    { type: 'text', text: ' ' },
+                    { type: 'wildcard', payload: 'adj_general', version: 1 },
+                    { type: 'text', text: ' nature, intricate_details' },
                 ],
             },
         }),
         negative: ui.prompt({
             startCollapsed: true,
-            default: 'bad hands, deformed, nude, nsfw',
+            default: 'nsfw, nude, girl, woman, human',
         }),
         model: ui_model(ui),
         latent: ui_latent(ui),
         sampler: ui_sampler(ui),
         highResFix: ui_highresfix(ui, { activeByDefault: true }),
-        controlnets: ui_cnet(ui),
+        controlnets: ui.groupOpt({
+            items: () => ({
+                pose: ui.list({
+                    //
+                    element: () =>
+                        ui.group({
+                            items: () => ({
+                                pose: ui.image({ assetSuggested: 'library/CushyStudio/default/_poses/' as RelativePath }),
+                            }),
+                        }),
+                }),
+            }),
+        }),
+        controlnetv2: ui.groupOpt({
+            items: () => ({
+                ControlNets: ui.list({
+                    //
+                    element: () =>
+                        ui.group({
+                            items: () => ({
+                                Controlnet: ui.image({ assetSuggested: 'library/CushyStudio/default/_poses/' as RelativePath }),
+                            }),
+                        }),
+                }),
+            }),
+        }),
         recursiveImgToImg: ui_recursive(ui),
         loop: ui.groupOpt({
             items: () => ({
@@ -70,26 +101,28 @@ app({
         let positive = x.conditionning
 
         const y = run_prompt(flow, { richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
-        let negative = y.conditionning
+        const negative = y.conditionning
 
         // START IMAGE -------------------------------------------------------------------------------
         let { latent } = await run_latent({ flow, opts: p.latent, vae })
 
         // CNETS -------------------------------------------------------------------------------
-        const pre_cnet_positive = positive
-        const pre_cnet_negative = negative        
-        if (p.controlnets) {
-            const Cnet_args: Cnet_args = {
-                positive,
-                negative
+        const cnets = p.controlnets
+        if (cnets) {
+            for (const cnet of cnets.pose) {
+                positive = graph.ControlNetApply({
+                    conditioning: positive,
+                    control_net: graph.ControlNetLoader({
+                        control_net_name: 'control_openpose-fp16.safetensors',
+                    }),
+                    image: (await flow.loadImageAnswer(cnet.pose))._IMAGE,
+                    strength: 1,
+                })
             }
-            var cnet_out = await run_cnet(flow,p.controlnets,Cnet_args)
-            positive = cnet_out.positive
-            negative = cnet_out.negative            
         }
 
         // FIRST PASS --------------------------------------------------------------------------------
-        let ctx_sampler: Ctx_sampler = {
+        const ctx_sampler: Ctx_sampler = {
             ckpt: ckptPos,
             clip: clipPos,
             vae,
@@ -100,15 +133,8 @@ app({
         }
         latent = run_sampler(flow, p.sampler, ctx_sampler).latent
 
-        if(p.controlnets && !p.controlnets.useControlnetConditioningForUpscalePassIfEnabled){
-            //it can sometimes be useful to only use the controlnets on the first pass. They can yield strange results when upscaling
-            ctx_sampler.positive = pre_cnet_positive,
-            ctx_sampler.negative = pre_cnet_negative
-        }
-
         // RECURSIVE PASS ----------------------------------------------------------------------------
         if (p.recursiveImgToImg) {
-
             for (let i = 0; i < p.recursiveImgToImg.loops; i++) {
                 latent = run_sampler(
                     flow,

@@ -1,7 +1,6 @@
 import type { Runtime } from 'src'
 import type { FormBuilder } from 'src/controls/FormBuilder'
 import type { OutputFor } from 'library/built-in/_prefabs/_prefabs'
-import type { ComfyWorkflowBuilder } from 'src/back/NodeBuilder';
 
 // 🅿️ CNET UI -----------------------------------------------------------
 export const ui_cnet = (form: FormBuilder) => {    
@@ -117,6 +116,8 @@ export const ui_subform_Canny_Preprocessor = (form: FormBuilder) => {
 export type Cnet_args = {
     positive: _CONDITIONING
     negative: _CONDITIONING
+    width: INT
+    height: INT
 }
 
 export const run_cnet = async (
@@ -132,79 +133,87 @@ export const run_cnet = async (
     const cnetList = opts?.controlNetList
     
     if (cnetList) {
-        for(const cnet of cnetList){
-
-            // IMAGE
-            var image = (await flow.loadImageAnswer(cnet.image))._IMAGE
-
-            // PREPROCESSOR ===========================================================
-            if(cnet.preprocessor)
+        for(const cnet of cnetList){            
+            let image: IMAGE
+            let cnet_name: Enum_ControlNetLoader_control_net_name = 'control_v11p_sd15_canny.pth'
+            if(cnet.Canny)
             {
-                var name = cnet.cnet_model_name.toLowerCase()
+                var canny = cnet.Canny
+                cnet_name = canny.cnet_model_name
                 //crop the image to the right size
                 //todo: make these editable
                 image = graph.ImageScale({
-                    image:image,
-                    width:512,
-                    height:768,
+                    image:(await flow.loadImageAnswer(canny.image))._IMAGE,
+                    width:cnet_args.width?? 512,
+                    height:cnet_args.height ?? 512,
                     upscale_method:'lanczos',
                     crop:'disabled',
                 })._IMAGE
                 
                 // PREPROCESSOR - CANNY ===========================================================
-                if(name.includes('canny'))
+                if(canny.preprocessor)
                 {
-                    const pp = <OutputFor<typeof ui_subform_Canny_Preprocessor>>cnet.preprocessor
-                    if(pp != null)
-                    {
-                        image = graph.CannyEdgePreprocessor({
-                            image: image,
-                            low_threshold: pp.lowThreshold,
-                            high_threshold: pp.highThreshold,
-                            resolution: pp.resolution,
-                        })._IMAGE
-                        if(pp.saveProcessedImage)
-                            graph.SaveImage({ images: image,filename_prefix:'cnet\\canny\\' })
-                        else
-                            graph.PreviewImage({ images: image})
-                    }
+                    var canPP= canny.preprocessor
+                    image = graph.CannyEdgePreprocessor({
+                        image: image,
+                        low_threshold: canPP.lowThreshold,
+                        high_threshold: canPP.highThreshold,
+                        resolution: canPP.resolution,
+                    })._IMAGE
+                    if(canPP.saveProcessedImage)
+                        graph.SaveImage({ images: image,filename_prefix:'cnet\\canny\\' })
+                    else
+                        graph.PreviewImage({ images: image})
                 }
-                // PREPROCESSOR - POSE ===========================================================
-                else if(name.includes('pose'))
-                {
-                    const pp = <OutputFor<typeof ui_subform_OpenPose_Preprocessor>>cnet.preprocessor
-                    if(pp != null)
+            }
+            // PREPROCESSOR - POSE ===========================================================
+            else if(cnet.OpenPose)
+            {
+                var openPose = cnet.OpenPose
+                cnet_name = openPose.cnet_model_name
+                //crop the image to the right size
+                //todo: make these editable
+                image = graph.ImageScale({
+                    image:(await flow.loadImageAnswer(openPose.image))._IMAGE,
+                    width:cnet_args.width?? 512,
+                    height:cnet_args.height?? 512,
+                    upscale_method:'lanczos',
+                    crop:'disabled',
+                })._IMAGE
+
+                if(openPose.preprocessor)
+                {                        
+                    var opPP = openPose.preprocessor
+                    if(opPP.useDWPose)
                     {                        
-                        if(pp.useDWPose)
-                        {
-                            image = graph.DWPreprocessor({
-                                image: image,
-                                detect_body: pp.detect_body?'enable':'disable',
-                                detect_face: pp.detect_face?'enable':'disable',
-                                detect_hand: pp.detect_hand?'enable':'disable',
-                                resolution: pp.resolution,
-                                bbox_detector: pp.bbox_detector,
-                                pose_estimator: pp.pose_estimator,
-                            })._IMAGE                            
-                        }
-                        else
-                        {
-                            image = graph.OpenposePreprocessor({
-                                image: image,
-                                detect_body: pp.detect_body?'enable':'disable',
-                                detect_face: pp.detect_face?'enable':'disable',
-                                detect_hand: pp.detect_hand?'enable':'disable',
-                                resolution: pp.resolution,
-                                })._IMAGE
-                        }
-                        if(pp.saveProcessedImage)
-                            graph.SaveImage({ images: image,filename_prefix:'cnet\\pose\\' })
-                        else
-                            graph.PreviewImage({ images: image})
+                        image = graph.DWPreprocessor({
+                            image: image,
+                            detect_body: opPP.detect_body?'enable':'disable',
+                            detect_face: opPP.detect_face?'enable':'disable',
+                            detect_hand: opPP.detect_hand?'enable':'disable',
+                            resolution: opPP.resolution,
+                            bbox_detector: opPP.bbox_detector,
+                            pose_estimator: opPP.pose_estimator,
+                        })._IMAGE                            
                     }
-                    
+                    else
+                    {
+                        image = graph.OpenposePreprocessor({
+                            image: image,
+                            detect_body: opPP.detect_body?'enable':'disable',
+                            detect_face: opPP.detect_face?'enable':'disable',
+                            detect_hand: opPP.detect_hand?'enable':'disable',
+                            resolution: opPP.resolution,
+                            })._IMAGE
+                    }
+                    if(opPP.saveProcessedImage)
+                        graph.SaveImage({ images: image,filename_prefix:'cnet\\pose\\' })
+                    else
+                        graph.PreviewImage({ images: image})
                 }
-            }             
+                
+            }
+               
             
             // CONTROL NET APPLY ===========================================================
             const cnet_node = graph.ControlNetApplyAdvanced({
@@ -212,7 +221,7 @@ export const run_cnet = async (
                 negative:negative,
                 image:image,
                 control_net:graph.ControlNetLoader({
-                    control_net_name: cnet.cnet_model_name,
+                    control_net_name: cnet_name,
                 }),
             })
             positive = cnet_node.outputs.positive
