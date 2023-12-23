@@ -3,7 +3,7 @@ import type { MediaImageL } from '../models/MediaImage'
 import type { ComfyStatus, PromptID, PromptRelated_WsMsg, WsMsg } from '../types/ComfyWsApi'
 import type { CSCriticalError } from '../widgets/CSCriticalError'
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs'
 import { makeAutoObservable } from 'mobx'
 import { nanoid } from 'nanoid'
 import { join } from 'pathe'
@@ -38,7 +38,7 @@ import { UserTags } from 'src/widgets/prompter/nodes/usertags/UserLoader'
 import { JsonFile } from '../core/JsonFile'
 import { LiveDB } from '../db/LiveDB'
 import { ComfyImporter } from '../importers/ComfyImporter'
-import { ComfyWorkflowL } from '../models/Graph'
+import { ComfyWorkflowL } from '../models/ComfyWorkflow'
 import { ComfySchemaL, EnumValue } from '../models/Schema'
 import { CushyLayoutManager } from '../panels/router/Layout'
 import { GitManagedFolder } from '../updater/updater'
@@ -424,7 +424,21 @@ export class STATE {
             isReadonly: SQLITE_true,
         })
     }
-
+    // ------------------------------------------------------------
+    wipeOuputTopLevelImages = () => {
+        const outputFolderPath = this.outputFolderPath
+        const files = readdirSync(outputFolderPath)
+        const confirm = window.confirm(`Are you sure you want to delete ${files.length} files in ${outputFolderPath}?`)
+        if (!confirm) return
+        for (const file of files) {
+            if (!file.endsWith('.png')) continue
+            const absPath = join(outputFolderPath, file)
+            console.log(`[🧹] deleting ${absPath}`)
+            rmSync(absPath)
+            // fs.rmSync(absPath)
+        }
+    }
+    // ------------------------------------------------------------
     /**
      * main host websocket
      * (exposed here for legacy reasons)

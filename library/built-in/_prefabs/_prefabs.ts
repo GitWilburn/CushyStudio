@@ -27,7 +27,7 @@ export const ui_highresfix = (form: FormBuilder, p: { activeByDefault?: true } =
         default: p.activeByDefault,
         label: 'Second Pass with latent Upscale (a.k.a. High Res Fix)',
         items: () => ({
-            scaleFactor: form.float({ default: 1.5, min: 0.5, max: 8, step:0.1}),
+            scaleFactor: form.float({ default: 1.5, min: 0.5, max: 8, step:0.25}),
             denoise: form.float({ default: 0.4, step: 0.01, min: 0, max: 1,  label: 'Denoise (will be ignored if separate sampler enabled)' }),
             saveIntermediaryImage: form.bool({ default: true }),            
             samplerSelect: form.groupOpt({
