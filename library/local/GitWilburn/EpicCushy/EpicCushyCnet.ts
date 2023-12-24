@@ -9,8 +9,6 @@ import { output_demo_summary } from 'library/built-in/_prefabs/prefab_markdown'
 import { ui_cnet, run_cnet } from 'library/local/GitWilburn/EpicCushy/_prefabs/prefab_cnet'
 import { Cnet_args } from './_prefabs/prefab_cnet';
 import { dz_faceDetailer_args, run_dz_face_detailer, ui_dz_face_detailer } from './_prefabs/prefab_faceDetailer'
-import { HasSingle_LATENT } from '../../../../schema/global';
-
 
 app({
     metadata: {
@@ -69,9 +67,10 @@ app({
         const graph = run.nodes
         // MODEL, clip skip, vae, etc. ---------------------------------------------------------------
         let { ckpt, vae, clip } = run_model(run, ui.model)
-
         const posPrompt = ui.reversePositiveAndNegative ? ui.negative : ui.positive
         const negPrompt = ui.reversePositiveAndNegative ? ui.positive : ui.negative
+
+        const original_ckpt = ckpt
 
         // RICH PROMPT ENGINE -------- ---------------------------------------------------------------
         const x = run_prompt(run, { richPrompt: posPrompt, clip, ckpt, outputWildcardsPicked: true })
@@ -169,7 +168,7 @@ app({
         // DZ Face Detailer ------------------------------------------------------------------
         //if (ui.faceDetailer) {
         let fd_sampler: Ctx_sampler = {
-            ckpt: ckptPos,
+            ckpt: original_ckpt, //for the face detailer, we usually want the original base model without any additional controlnets applied
             clip: clipPos,
             vae,
             latent,
