@@ -9,6 +9,7 @@ import { output_demo_summary } from 'library/built-in/_prefabs/prefab_markdown'
 import { ui_cnet, run_cnet } from 'library/local/GitWilburn/EpicCushy/_prefabs/prefab_cnet'
 import { Cnet_args } from './_prefabs/prefab_cnet';
 import { dz_faceDetailer_args, run_dz_face_detailer, ui_dz_face_detailer } from './_prefabs/prefab_faceDetailer'
+import { HasSingle_LATENT } from '../../../../schema/global';
 
 
 app({
@@ -180,8 +181,8 @@ app({
             base_sampler: fd_sampler,
             base_sampler_opts: ui.sampler //send in the base sampler
         }
-        const dz = run_dz_face_detailer(run, ui.faceDetailer, fd_args)
-        latent = dz.return_latent //set to new latent if it exists
+        const dz = await run_dz_face_detailer(run, ui.faceDetailer, fd_args)
+        latent = dz.return_latent//set to new latent if it exists
         const dz_mask = dz.return_mask
         //}
 

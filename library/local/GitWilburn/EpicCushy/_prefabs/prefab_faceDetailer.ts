@@ -3,6 +3,7 @@ import type { FormBuilder } from 'src/controls/FormBuilder'
 import type { OutputFor } from 'library/built-in/_prefabs/_prefabs'
 import { Ctx_sampler, ui_sampler } from 'library/built-in/_prefabs/prefab_sampler';
 import { run_prompt } from 'library/built-in/_prefabs/prefab_prompt';
+import { run_cnet_IPAdapter, ui_subform_IPAdapter } from './prefab_cnet_ipAdapter';
 
 // 🅿️ DZ FaceDetailer UI -----------------------------------------------------------
 export const ui_dz_face_detailer = (form: FormBuilder) => {
@@ -28,7 +29,14 @@ export const ui_dz_face_detailer = (form: FormBuilder) => {
                 default: 'dilate',
             }),
             dilate_mask_value: form.int({ min: 0, default: 3 }),
-            erode_mask_value: form.int({ min: 0, default: 3 })
+            erode_mask_value: form.int({ min: 0, default: 3 }),
+            ip_apapter: form.groupOpt({
+                label: 'Add IPAdapter for face model',
+                items: () => ({
+                    ip_adapter_ui: ui_subform_IPAdapter(form)
+                })
+            })
+
         }),
 
     })
@@ -40,27 +48,26 @@ export type dz_faceDetailer_args = {
     base_sampler_opts: OutputFor<typeof ui_sampler>
 }
 
-export const run_dz_face_detailer = (
+export const run_dz_face_detailer = async (
     run: Runtime,
     opts: OutputFor<typeof ui_dz_face_detailer>,
-    args: dz_faceDetailer_args): { return_latent: any, return_mask: any } => {
+    args: dz_faceDetailer_args) => {
     const graph = run.nodes
-    let return_latent: _LATENT = args.base_sampler.latent
+    let return_latent: HasSingle_LATENT = args.base_sampler.latent
     let return_mask: _MASK | undefined
 
     if (!opts)
         return { return_latent, return_mask } //if the detailer isn't selected, just return the latent as is
 
-    const ckpt = args.base_sampler.ckpt
-
     let positive: _CONDITIONING
     let negative: _CONDITIONING
-    let ckptPos: _MODEL
+    let ckptPos: _MODEL = args.base_sampler.ckpt
+
     const clip = args.base_sampler.clip
     //if there is text, then use it instead of the base prompt
     if (opts.sampler && opts.sampler.positive.tokens.length > 0) {
         // RICH PROMPT ENGINE -------- ---------------------------------------------------------------
-        const x = run_prompt(run, { richPrompt: opts.sampler.positive, clip, ckpt, outputWildcardsPicked: true })
+        const x = run_prompt(run, { richPrompt: opts.sampler.positive, clip, ckpt: ckptPos, outputWildcardsPicked: true })
         ckptPos = x.ckpt
         positive = x.conditionning
     }
@@ -73,7 +80,7 @@ export const run_dz_face_detailer = (
     //negative text
     if (opts.sampler && opts.sampler.negative.tokens.length > 0) {
         // RICH PROMPT ENGINE -------- ---------------------------------------------------------------
-        const y = run_prompt(run, { richPrompt: opts.sampler.negative, clip, ckpt, outputWildcardsPicked: true })
+        const y = run_prompt(run, { richPrompt: opts.sampler.negative, clip, ckpt: ckptPos, outputWildcardsPicked: true })
         negative = y.conditionning
     }
     else {
@@ -82,8 +89,21 @@ export const run_dz_face_detailer = (
             : args.base_sampler.negative
     }
 
+    //ip adapter for face detailer
+    if (opts.ip_apapter) {
+        var ip_adapted = await (run_cnet_IPAdapter(run, opts.ip_apapter.ip_adapter_ui,
+            {
+                positive: positive,
+                negative: negative,
+                width: 512,
+                height: 512,
+                ckptPos: ckptPos,
+            }))
+        ckptPos = ip_adapted.ip_adapted_model
+    }
+
     const return_node = graph.DZ$_Face$_Detailer({
-        model: args.base_sampler.ckpt,
+        model: ckptPos,
         positive: positive,
         negative: negative,
         latent_image: args.base_sampler.latent,
@@ -100,7 +120,7 @@ export const run_dz_face_detailer = (
         dilate_mask_value: opts.dilate_mask_value,
         erode_mask_value: opts.erode_mask_value
     })
-    return_latent = return_node._LATENT
+    return_latent = return_node
     return_mask = return_node._MASK
 
     return { return_latent, return_mask }

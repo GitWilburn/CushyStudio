@@ -49,7 +49,6 @@ export const run_cnet_IPAdapter = async (flow: Runtime, IPAdapter: OutputFor<typ
     const graph = flow.nodes
     const ip = IPAdapter
     let image: IMAGE
-    const cnet_name = IPAdapter.cnet_model_name
     //crop the image to the right size
     //todo: make these editable
     image = graph.PrepImageForClipVision({
