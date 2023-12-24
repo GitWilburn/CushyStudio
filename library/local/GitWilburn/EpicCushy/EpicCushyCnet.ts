@@ -73,29 +73,31 @@ app({
         // RICH PROMPT ENGINE -------- ---------------------------------------------------------------
         const x = run_prompt(run, { richPrompt: posPrompt, clip, ckpt, outputWildcardsPicked: true })
         const clipPos = x.clip
-        const ckptPos = x.ckpt
+        let ckptPos = x.ckpt
         let positive = x.conditionning
 
         const y = run_prompt(run, { richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
         let negative = y.conditionning
 
         // START IMAGE -------------------------------------------------------------------------------
-        
+
         let { latent, width, height } = await run_latent({ run: run, opts: ui.latent, vae })
 
         // CNETS -------------------------------------------------------------------------------
         const pre_cnet_positive = positive
-        const pre_cnet_negative = negative        
+        const pre_cnet_negative = negative
         if (ui.controlnets) {
             const Cnet_args: Cnet_args = {
                 positive,
                 negative,
                 width,
                 height,
+                ckptPos,
             }
-            var cnet_out = await run_cnet(run,ui.controlnets,Cnet_args)
+            var cnet_out = await run_cnet(run, ui.controlnets, Cnet_args)
             positive = cnet_out.positive
-            negative = cnet_out.negative            
+            negative = cnet_out.negative
+            ckptPos = cnet_out.ckpt_return //only used for ipAdapter, otherwise it will just be a passthrough
         }
 
         // FIRST PASS --------------------------------------------------------------------------------
@@ -110,10 +112,10 @@ app({
         }
         latent = run_sampler(run, ui.sampler, ctx_sampler).latent
 
-        if(ui.controlnets && !ui.controlnets.useControlnetConditioningForUpscalePassIfEnabled){
+        if (ui.controlnets && !ui.controlnets.useControlnetConditioningForUpscalePassIfEnabled) {
             //it can sometimes be useful to only use the controlnets on the first pass. They can yield strange results when upscaling
             ctx_sampler.positive = pre_cnet_positive,
-            ctx_sampler.negative = pre_cnet_negative
+                ctx_sampler.negative = pre_cnet_negative
         }
 
         // RECURSIVE PASS ----------------------------------------------------------------------------
@@ -146,16 +148,16 @@ app({
                 upscale_method: 'nearest-exact',
                 height: ui.latent.size.height * ui.highResFix.scaleFactor,
                 width: ui.latent.size.width * ui.highResFix.scaleFactor,
-            })            
+            })
             latent = latent = run_sampler(
                 run,
                 {
-                    seed: ui.highResFix.samplerSelect?ui.highResFix.samplerSelect.sampler.seed:ui.sampler.seed,
-                    cfg: ui.highResFix.samplerSelect?ui.highResFix.samplerSelect.sampler.cfg:ui.sampler.cfg,
-                    steps: ui.highResFix.samplerSelect?ui.highResFix.samplerSelect.sampler.steps:ui.sampler.steps,
-                    denoise: ui.highResFix.samplerSelect?ui.highResFix.samplerSelect.sampler.denoise:ui.highResFix.denoise,
-                    sampler_name: ui.highResFix.samplerSelect?ui.highResFix.samplerSelect.sampler.sampler_name:ui.sampler.sampler_name,
-                    scheduler: ui.highResFix.samplerSelect?ui.highResFix.samplerSelect.sampler.scheduler:ui.sampler.scheduler,
+                    seed: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.seed : ui.sampler.seed,
+                    cfg: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.cfg : ui.sampler.cfg,
+                    steps: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.steps : ui.sampler.steps,
+                    denoise: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.denoise : ui.highResFix.denoise,
+                    sampler_name: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.sampler_name : ui.sampler.sampler_name,
+                    scheduler: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.scheduler : ui.sampler.scheduler,
                 },
                 { ...ctx_sampler, latent, preview: false },
             ).latent
