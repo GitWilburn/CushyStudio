@@ -5,6 +5,7 @@ import { run_cnet_openPose, ui_subform_OpenPose } from './prefab_cnet_openPose'
 import { run_cnet_canny, ui_subform_Canny } from './prefab_cnet_canny'
 import { run_cnet_Depth, ui_subform_Depth } from './prefab_cnet_depth'
 import { run_cnet_Normal, ui_subform_Normal } from './prefab_cnet_normal'
+import { ui_subform_Tile, run_cnet_Tile } from './prefab_cnet_tile'
 
 // 🅿️ CNET UI -----------------------------------------------------------
 export const ui_cnet = (form: FormBuilder) => {    
@@ -21,7 +22,8 @@ export const ui_cnet = (form: FormBuilder) => {
                             OpenPose:ui_subform_OpenPose(form),
                             Canny:ui_subform_Canny(form),
                             Depth:ui_subform_Depth(form) ,
-                            Normal:ui_subform_Normal(form,)                           
+                            Normal:ui_subform_Normal(form),
+                            Tile:ui_subform_Tile(form),                           
                         }),
                     })
                     
@@ -94,7 +96,13 @@ export const run_cnet = async (
                 const cnet_return_normal = await (run_cnet_Normal(flow, cnet.Normal,cnet_args))
                 image = cnet_return_normal.image
                 cnet_name = cnet_return_normal.cnet_name                
-            }    
+            }
+            else if(cnet.Tile)
+            {
+                const cnet_return_tile = await (run_cnet_Tile(flow, cnet.Tile,cnet_args))
+                image = cnet_return_tile.image
+                cnet_name = cnet_return_tile.cnet_name                
+            }        
             
             
             // CONTROL NET APPLY ===========================================================

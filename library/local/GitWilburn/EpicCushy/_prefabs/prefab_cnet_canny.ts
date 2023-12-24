@@ -1,4 +1,4 @@
-import { FormBuilder, Runtime } from "src"
+import type { FormBuilder, Runtime } from "src"
 import { Cnet_args, cnet_preprocessor_ui_common, cnet_ui_common } from "./prefab_cnet"
 import { OutputFor } from "library/built-in/_prefabs/_prefabs"
 
