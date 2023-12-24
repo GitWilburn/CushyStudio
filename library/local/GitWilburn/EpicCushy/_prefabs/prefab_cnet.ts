@@ -4,6 +4,7 @@ import type { OutputFor } from 'library/built-in/_prefabs/_prefabs'
 import { run_cnet_openPose, ui_subform_OpenPose } from './prefab_cnet_openPose'
 import { run_cnet_canny, ui_subform_Canny } from './prefab_cnet_canny'
 import { run_cnet_Depth, ui_subform_Depth } from './prefab_cnet_depth'
+import { run_cnet_Normal, ui_subform_Normal } from './prefab_cnet_normal'
 
 // 🅿️ CNET UI -----------------------------------------------------------
 export const ui_cnet = (form: FormBuilder) => {    
@@ -19,7 +20,8 @@ export const ui_cnet = (form: FormBuilder) => {
                         items:() => ({
                             OpenPose:ui_subform_OpenPose(form),
                             Canny:ui_subform_Canny(form),
-                            Depth:ui_subform_Depth(form)                            
+                            Depth:ui_subform_Depth(form) ,
+                            Normal:ui_subform_Normal(form,)                           
                         }),
                     })
                     
@@ -30,7 +32,7 @@ export const ui_cnet = (form: FormBuilder) => {
 
 // 🅿️ CNET COMMON FORM ===================================================
 export const cnet_ui_common = (form:FormBuilder)=> ({
-    image:form.image({default:'cushy'}),
+    image:form.image({default:'cushy',group:'Cnet_Image',tooltip:'There is currently a bug with multiple controlnets where an image wont allow drop except for the first controlnet in the list. If you add multiple controlnets, then reload using Ctrl+R, it should allow you to drop an image on any of the controlnets.'}),
     strength:form.float({default:1,min:0,max:2,step:0.1}),
     startAtStepPercent:form.float({default:0,min:0,max:1,step:0.1}),
     endAtStepPercent:form.float({default:1,min:0,max:1,step:0.1}),
@@ -85,7 +87,15 @@ export const run_cnet = async (
                 const cnet_return_depth = await (run_cnet_Depth(flow, cnet.Depth,cnet_args))
                 image = cnet_return_depth.image
                 cnet_name = cnet_return_depth.cnet_name                
-            }                  
+            } 
+            // Normal ===========================================================
+            else if(cnet.Normal)
+            {
+                const cnet_return_normal = await (run_cnet_Normal(flow, cnet.Normal,cnet_args))
+                image = cnet_return_normal.image
+                cnet_name = cnet_return_normal.cnet_name                
+            }    
+            
             
             // CONTROL NET APPLY ===========================================================
             const cnet_node = graph.ControlNetApplyAdvanced({
