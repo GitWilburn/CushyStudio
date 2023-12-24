@@ -7,7 +7,6 @@ import { run_cnet_Depth, ui_subform_Depth } from './prefab_cnet_depth'
 import { run_cnet_Normal, ui_subform_Normal } from './prefab_cnet_normal'
 import { ui_subform_Tile, run_cnet_Tile } from './prefab_cnet_tile'
 import { run_cnet_IPAdapter, ui_subform_IPAdapter } from './prefab_cnet_ipAdapter'
-import { IPADAPTER } from '../../../../../schema/global';
 
 // 🅿️ CNET UI -----------------------------------------------------------
 export const ui_cnet = (form: FormBuilder) => {

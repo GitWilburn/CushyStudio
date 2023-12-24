@@ -8,6 +8,7 @@ import { ui_highresfix } from 'library/built-in/_prefabs/_prefabs'
 import { output_demo_summary } from 'library/built-in/_prefabs/prefab_markdown'
 import { ui_cnet, run_cnet } from 'library/local/GitWilburn/EpicCushy/_prefabs/prefab_cnet'
 import { Cnet_args } from './_prefabs/prefab_cnet';
+import { dz_faceDetailer_args, run_dz_face_detailer, ui_dz_face_detailer } from './_prefabs/prefab_faceDetailer'
 
 
 app({
@@ -33,6 +34,7 @@ app({
         sampler: ui_sampler(form),
         highResFix: ui_highresfix(form, { activeByDefault: true }),
         controlnets: ui_cnet(form),
+        faceDetailer: ui_dz_face_detailer(form),
         recursiveImgToImg: ui_recursive(form),
         loop: form.groupOpt({
             items: () => ({
@@ -162,6 +164,27 @@ app({
                 { ...ctx_sampler, latent, preview: false },
             ).latent
         }
+
+        // DZ Face Detailer ------------------------------------------------------------------
+        //if (ui.faceDetailer) {
+        let fd_sampler: Ctx_sampler = {
+            ckpt: ckptPos,
+            clip: clipPos,
+            vae,
+            latent,
+            positive: positive,
+            negative: negative,
+            preview: false,
+        }
+        let fd_args: dz_faceDetailer_args = {
+            base_sampler: fd_sampler,
+            base_sampler_opts: ui.sampler //send in the base sampler
+        }
+        const dz = run_dz_face_detailer(run, ui.faceDetailer, fd_args)
+        latent = dz.return_latent //set to new latent if it exists
+        const dz_mask = dz.return_mask
+        //}
+
 
         let finalImage: HasSingle_IMAGE = graph.VAEDecode({ samples: latent, vae })
 
