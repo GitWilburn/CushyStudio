@@ -80,14 +80,11 @@ app({
 
         const y = run_prompt(run, { richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
         let negative = y.conditionning
-
         // START IMAGE -------------------------------------------------------------------------------
 
         let { latent, width, height } = await run_latent({ run: run, opts: ui.latent, vae })
 
-        // CNETS -------------------------------------------------------------------------------
-        const pre_cnet_positive = positive
-        const pre_cnet_negative = negative
+        // CNETS -------------------------------------------------------------------------------        const pre_cnet_positive = positive
         if (ui.controlnets) {
             const Cnet_args: Cnet_args = {
                 positive,
@@ -97,8 +94,8 @@ app({
                 ckptPos,
             }
             var cnet_out = await run_cnet(run, ui.controlnets, Cnet_args)
-            positive = cnet_out.positive
-            negative = cnet_out.negative
+            positive = cnet_out.cnet_positive
+            negative = cnet_out.cnet_negative
             ckptPos = cnet_out.ckpt_return //only used for ipAdapter, otherwise it will just be a passthrough
         }
 
@@ -113,12 +110,6 @@ app({
             preview: false,
         }
         latent = run_sampler(run, ui.sampler, ctx_sampler).latent
-
-        if (ui.controlnets && !ui.controlnets.useControlnetConditioningForUpscalePassIfEnabled) {
-            //it can sometimes be useful to only use the controlnets on the first pass. They can yield strange results when upscaling
-            ctx_sampler.positive = pre_cnet_positive,
-                ctx_sampler.negative = pre_cnet_negative
-        }
 
         // RECURSIVE PASS ----------------------------------------------------------------------------
         if (ui.recursiveImgToImg) {
@@ -151,39 +142,36 @@ app({
                 height: ui.latent.size.height * ui.highResFix.scaleFactor,
                 width: ui.latent.size.width * ui.highResFix.scaleFactor,
             })
-            latent = latent = run_sampler(
-                run,
-                {
-                    seed: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.seed : ui.sampler.seed,
-                    cfg: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.cfg : ui.sampler.cfg,
-                    steps: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.steps : ui.sampler.steps,
-                    denoise: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.denoise : ui.highResFix.denoise,
-                    sampler_name: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.sampler_name : ui.sampler.sampler_name,
-                    scheduler: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.scheduler : ui.sampler.scheduler,
-                },
-                { ...ctx_sampler, latent, preview: false },
-            ).latent
+            latent = graph.KSampler({
+                model: ckptPos,
+                seed: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.seed : ui.sampler.seed,
+                latent_image: latent,
+                cfg: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.cfg : ui.sampler.cfg,
+                steps: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.steps : ui.sampler.steps,
+                sampler_name: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.sampler_name : ui.sampler.sampler_name,
+                scheduler: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.scheduler : ui.sampler.scheduler,
+                denoise: ui.highResFix.samplerSelect ? ui.highResFix.samplerSelect.sampler.denoise : ui.highResFix.denoise,
+                positive: (ui.controlnets?.useControlnetConditioningForUpscalePassIfEnabled) ? positive : x.conditionning,
+                negative: (ui.controlnets?.useControlnetConditioningForUpscalePassIfEnabled) ? negative : y.conditionning
+            })
         }
 
         // DZ Face Detailer ------------------------------------------------------------------
-        //if (ui.faceDetailer) {
-        let fd_sampler: Ctx_sampler = {
-            ckpt: original_ckpt, //for the face detailer, we usually want the original base model without any additional controlnets applied
-            clip: clipPos,
-            vae,
-            latent,
-            positive: positive,
-            negative: negative,
-            preview: false,
+        if (ui.faceDetailer) {
+            let fd_args: dz_faceDetailer_args = {
+                ckpt: original_ckpt, //for the face detailer, we usually want the original base model without any additional controlnets applied
+                clip: clip,
+                vae,
+                latent,
+                positive: x.conditionning, //for the face detailer, we usually want the original base positive without any additional controlnets applied
+                negative: y.conditionning, //for the face detailer, we usually want the original base negative without any additional controlnets applied
+                preview: false,
+                base_sampler_opts: ui.sampler, //send in the base sampler
+            }
+            const dz = await run_dz_face_detailer(run, ui.faceDetailer, fd_args)
+            latent = dz.return_latent//set to new latent if it exists
+            const dz_mask = dz.return_mask
         }
-        let fd_args: dz_faceDetailer_args = {
-            base_sampler: fd_sampler,
-            base_sampler_opts: ui.sampler //send in the base sampler
-        }
-        const dz = await run_dz_face_detailer(run, ui.faceDetailer, fd_args)
-        latent = dz.return_latent//set to new latent if it exists
-        const dz_mask = dz.return_mask
-        //}
 
 
         let finalImage: HasSingle_IMAGE = graph.VAEDecode({ samples: latent, vae })

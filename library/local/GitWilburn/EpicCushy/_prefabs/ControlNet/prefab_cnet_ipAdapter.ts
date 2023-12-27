@@ -1,5 +1,5 @@
 import type { FormBuilder, Runtime } from "src"
-import { Cnet_args, cnet_ui_common } from "./prefab_cnet"
+import { Cnet_args, cnet_ui_common } from "../prefab_cnet"
 import { OutputFor } from "library/built-in/_prefabs/_prefabs"
 
 // 🅿️ IPAdapter FORM ===================================================
@@ -7,7 +7,10 @@ export const ui_subform_IPAdapter = (form: FormBuilder) => {
     return form.group({
         label: 'IPAdapter',
         items: () => ({
-            ...cnet_ui_common(form),
+            image: form.image({ default: 'cushy', group: 'Cnet_Image', tooltip: 'There is currently a bug with multiple controlnets where an image wont allow drop except for the first controlnet in the list. If you add multiple controlnets, then reload using Ctrl+R, it should allow you to drop an image on any of the controlnets.' }),
+            strength: form.float({ default: 1, min: 0, max: 2, step: 0.1 }),
+            startAtStepPercent: form.float({ default: 0, min: 0, max: 1, step: 0.1 }),
+            endAtStepPercent: form.float({ default: 1, min: 0, max: 1, step: 0.1 }),
             clip_name: form.enum({
                 enumName: 'Enum_CLIPVisionLoader_clip_name',
                 default: 'model.safetensors',

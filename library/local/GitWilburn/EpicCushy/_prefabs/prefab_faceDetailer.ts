@@ -3,7 +3,8 @@ import type { FormBuilder } from 'src/controls/FormBuilder'
 import type { OutputFor } from 'library/built-in/_prefabs/_prefabs'
 import { Ctx_sampler, ui_sampler } from 'library/built-in/_prefabs/prefab_sampler';
 import { run_prompt } from 'library/built-in/_prefabs/prefab_prompt';
-import { run_cnet_IPAdapter, ui_subform_IPAdapter } from './prefab_cnet_ipAdapter';
+import { run_cnet_IPAdapter, ui_subform_IPAdapter } from './ControlNet/prefab_cnet_ipAdapter';
+import { run_cnet_openPose, run_cnet_openPose_face_simple, ui_subform_OpenPose } from './ControlNet/prefab_cnet_openPose';
 
 // 🅿️ DZ FaceDetailer UI -----------------------------------------------------------
 export const ui_dz_face_detailer = (form: FormBuilder) => {
@@ -35,6 +36,10 @@ export const ui_dz_face_detailer = (form: FormBuilder) => {
                 items: () => ({
                     ip_adapter_ui: ui_subform_IPAdapter(form)
                 })
+            }),
+            cnet_pose: form.bool({
+                label: 'Add Face pose for face model',
+                tooltip: 'This function currently doesnt have advanced option selections. It will only run OpenPose, only runs on SD 1.5 image models and the model is hard-pathed to run for a model named control_v11p_sd15_openpose',
             })
 
         }),
@@ -44,8 +49,14 @@ export const ui_dz_face_detailer = (form: FormBuilder) => {
 
 // 🅿️ DZ FaceDetailer Run -----------------------------------------------------------
 export type dz_faceDetailer_args = {
-    base_sampler: Ctx_sampler,
-    base_sampler_opts: OutputFor<typeof ui_sampler>
+    ckpt: _MODEL
+    clip: _CLIP
+    latent: HasSingle_LATENT
+    positive: _CONDITIONING
+    negative: _CONDITIONING
+    preview?: boolean
+    vae: _VAE
+    base_sampler_opts: OutputFor<typeof ui_sampler>,
 }
 
 export const run_dz_face_detailer = async (
@@ -53,17 +64,17 @@ export const run_dz_face_detailer = async (
     opts: OutputFor<typeof ui_dz_face_detailer>,
     args: dz_faceDetailer_args) => {
     const graph = run.nodes
-    let return_latent: HasSingle_LATENT = args.base_sampler.latent
+    let return_latent: HasSingle_LATENT = args.latent
     let return_mask: _MASK | undefined
 
     if (!opts)
         return { return_latent, return_mask } //if the detailer isn't selected, just return the latent as is
 
-    let positive: _CONDITIONING
-    let negative: _CONDITIONING
-    let ckptPos: _MODEL = args.base_sampler.ckpt
+    let positive: _CONDITIONING = args.positive
+    let negative: _CONDITIONING = args.negative
+    let ckptPos: _MODEL = args.ckpt
 
-    const clip = args.base_sampler.clip
+    const clip = args.clip
     //if there is text, then use it instead of the base prompt
     if (opts.sampler && opts.sampler.positive.tokens.length > 0) {
         // RICH PROMPT ENGINE -------- ---------------------------------------------------------------
@@ -72,9 +83,9 @@ export const run_dz_face_detailer = async (
         positive = x.conditionning
     }
     else {
-        positive = typeof args.base_sampler.positive === 'string' //
-            ? graph.CLIPTextEncode({ clip: args.base_sampler.clip, text: args.base_sampler.positive })
-            : args.base_sampler.positive
+        positive = typeof args.positive === 'string' //
+            ? graph.CLIPTextEncode({ clip: args.clip, text: args.positive })
+            : args.positive
     }
 
     //negative text
@@ -84,9 +95,9 @@ export const run_dz_face_detailer = async (
         negative = y.conditionning
     }
     else {
-        negative = typeof args.base_sampler.negative === 'string' //
-            ? graph.CLIPTextEncode({ clip: args.base_sampler.clip, text: args.base_sampler.negative })
-            : args.base_sampler.negative
+        negative = typeof args.negative === 'string' //
+            ? graph.CLIPTextEncode({ clip: args.clip, text: args.negative })
+            : args.negative
     }
 
     //ip adapter for face detailer
@@ -102,12 +113,27 @@ export const run_dz_face_detailer = async (
         ckptPos = ip_adapted.ip_adapted_model
     }
 
+    //openpose controlnet to retain face orientation
+    if (opts.cnet_pose) {
+        const openPose_return = run_cnet_openPose_face_simple(run, {
+            positive: positive,
+            negative: negative,
+            image: graph.VAEDecode({ samples: args.latent, vae: args.vae }),
+            control_net: 'control_v11p_sd15_openpose.pth',
+            ckptPos: ckptPos,
+            resolution: 512
+        })
+
+        positive = openPose_return.positive
+        negative = openPose_return.negative
+    }
+
     const return_node = graph.DZ$_Face$_Detailer({
         model: ckptPos,
         positive: positive,
         negative: negative,
-        latent_image: args.base_sampler.latent,
-        vae: args.base_sampler.vae,
+        latent_image: args.latent,
+        vae: args.vae,
         seed: opts.seed,
         steps: opts.sampler ? opts.sampler.face_sampler.steps : args.base_sampler_opts.steps,
         cfg: opts.sampler ? opts.sampler.face_sampler.cfg : args.base_sampler_opts.cfg,
