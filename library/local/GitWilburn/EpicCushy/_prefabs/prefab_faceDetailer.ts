@@ -1,10 +1,11 @@
-import type { Runtime } from 'src'
+import type { Runtime, Widget_prompt_output } from 'src'
 import type { FormBuilder } from 'src/controls/FormBuilder'
 import type { OutputFor } from 'library/built-in/_prefabs/_prefabs'
-import { Ctx_sampler, ui_sampler } from 'library/built-in/_prefabs/prefab_sampler';
+import { ui_sampler } from 'library/built-in/_prefabs/prefab_sampler';
 import { run_prompt } from 'library/built-in/_prefabs/prefab_prompt';
 import { run_cnet_IPAdapter, ui_subform_IPAdapter } from './ControlNet/prefab_cnet_ipAdapter';
-import { run_cnet_openPose, run_cnet_openPose_face_simple, ui_subform_OpenPose } from './ControlNet/prefab_cnet_openPose';
+import { run_cnet_openPose_face_simple } from './ControlNet/prefab_cnet_openPose';
+import type { PossibleSerializedNodes } from 'src/widgets/prompter/plugins/PossibleSerializedNodes';
 
 // 🅿️ DZ FaceDetailer UI -----------------------------------------------------------
 export const ui_dz_face_detailer = (form: FormBuilder) => {
@@ -56,7 +57,9 @@ export type dz_faceDetailer_args = {
     negative: _CONDITIONING
     preview?: boolean
     vae: _VAE
-    base_sampler_opts: OutputFor<typeof ui_sampler>,
+    character_prompt: Widget_prompt_output
+    base_negative_ui: Widget_prompt_output
+    base_sampler_opts: OutputFor<typeof ui_sampler>
 }
 
 export const run_dz_face_detailer = async (
@@ -66,72 +69,53 @@ export const run_dz_face_detailer = async (
     const graph = run.nodes
     let return_latent: HasSingle_LATENT = args.latent
     let return_mask: _MASK | undefined
-
+    let return_ckpt = args.ckpt
     if (!opts)
         return { return_latent, return_mask } //if the detailer isn't selected, just return the latent as is
 
-    let positive: _CONDITIONING = args.positive
-    let negative: _CONDITIONING = args.negative
-    let ckptPos: _MODEL = args.ckpt
+    // let positive: _CONDITIONING = face_prompt.conditionning
+    // let negative: _CONDITIONING = args.negative
+    // let ckptPos: _MODEL = args.ckpt
 
     const clip = args.clip
-    //if there is text, then use it instead of the base prompt
-    if (opts.sampler && opts.sampler.positive.tokens.length > 0) {
-        // RICH PROMPT ENGINE -------- ---------------------------------------------------------------
-        const x = run_prompt(run, { richPrompt: opts.sampler.positive, clip, ckpt: ckptPos, outputWildcardsPicked: true })
-        ckptPos = x.ckpt
-        positive = x.conditionning
-    }
-    else {
-        positive = typeof args.positive === 'string' //
-            ? graph.CLIPTextEncode({ clip: args.clip, text: args.positive })
-            : args.positive
-    }
+    //if there is text, then add it to the character prompt
+    const face_positive = run_prompt(run, {
+        richPrompt: (opts.sampler?.negative.tokens.length == 0) ? args.character_prompt : { ...args.character_prompt, ...opts.sampler?.positive },
+        clip: args.clip,
+        ckpt: args.ckpt,
+        outputWildcardsPicked: true
+    }).conditionning
 
     //negative text
-    if (opts.sampler && opts.sampler.negative.tokens.length > 0) {
-        // RICH PROMPT ENGINE -------- ---------------------------------------------------------------
-        const y = run_prompt(run, { richPrompt: opts.sampler.negative, clip, ckpt: ckptPos, outputWildcardsPicked: true })
-        negative = y.conditionning
-    }
-    else {
-        negative = typeof args.negative === 'string' //
-            ? graph.CLIPTextEncode({ clip: args.clip, text: args.negative })
-            : args.negative
-    }
+    const face_negative = (opts.sampler?.negative.tokens.length == 0) ? args.negative
+        : run_prompt(run, { richPrompt: { ...opts.sampler?.negative.tokens, ...args.base_negative_ui.tokens }, clip, ckpt: args.ckpt, outputWildcardsPicked: true }).conditionning
 
     //ip adapter for face detailer
-    if (opts.ip_apapter) {
-        var ip_adapted = await (run_cnet_IPAdapter(run, opts.ip_apapter.ip_adapter_ui,
+    var ip_adapted = (!opts.ip_apapter) ? undefined :
+        await (run_cnet_IPAdapter(run, opts.ip_apapter.ip_adapter_ui,
             {
-                positive: positive,
-                negative: negative,
+                positive: face_positive,
+                negative: face_negative,
                 width: 512,
                 height: 512,
-                ckptPos: ckptPos,
-            }))
-        ckptPos = ip_adapted.ip_adapted_model
-    }
+                ckptPos: args.ckpt,
+            }
+        ))
 
     //openpose controlnet to retain face orientation
-    if (opts.cnet_pose) {
-        const openPose_return = run_cnet_openPose_face_simple(run, {
-            positive: positive,
-            negative: negative,
-            image: graph.VAEDecode({ samples: args.latent, vae: args.vae }),
-            control_net: 'control_v11p_sd15_openpose.pth',
-            ckptPos: ckptPos,
-            resolution: 512
-        })
-
-        positive = openPose_return.positive
-        negative = openPose_return.negative
-    }
+    const openPose_return = (!opts.cnet_pose) ? undefined : run_cnet_openPose_face_simple(run, {
+        positive: face_positive,
+        negative: face_negative,
+        image: graph.VAEDecode({ samples: args.latent, vae: args.vae }),
+        control_net: 'control_v11p_sd15_openpose.pth',
+        ckptPos: ip_adapted ? ip_adapted.ip_adapted_model : args.ckpt,
+        resolution: 512
+    })
 
     const return_node = graph.DZ$_Face$_Detailer({
-        model: ckptPos,
-        positive: positive,
-        negative: negative,
+        model: ip_adapted ? ip_adapted.ip_adapted_model : args.ckpt,
+        positive: openPose_return ? openPose_return.positive : args.positive,
+        negative: openPose_return ? openPose_return.positive : args.negative,
         latent_image: args.latent,
         vae: args.vae,
         seed: opts.seed,

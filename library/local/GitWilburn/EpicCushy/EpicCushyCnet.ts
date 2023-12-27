@@ -17,10 +17,17 @@ app({
         description: 'A card that contains all the features needed to play with stable diffusion - but EPIC',
     },
     ui: (form) => ({
-        positive: form.prompt({
+        positive_prompt: form.prompt({
             default: {
                 tokens: [
                     { type: 'text', text: 'cyberpunk, masterpiece, concept art, artgerm' },
+                ],
+            },
+        }),
+        character_prompt: form.prompt({
+            default: {
+                tokens: [
+                    { type: 'wildcard', payload: '1_WilCharacters', version: 1 },
                 ],
             },
         }),
@@ -67,8 +74,10 @@ app({
         const graph = run.nodes
         // MODEL, clip skip, vae, etc. ---------------------------------------------------------------
         let { ckpt, vae, clip } = run_model(run, ui.model)
-        const posPrompt = ui.reversePositiveAndNegative ? ui.negative : ui.positive
-        const negPrompt = ui.reversePositiveAndNegative ? ui.positive : ui.negative
+
+
+        const posPrompt = ui.reversePositiveAndNegative ? ui.negative : { ...ui.character_prompt, ...ui.positive_prompt }
+        const negPrompt = ui.reversePositiveAndNegative ? { ...ui.character_prompt, ...ui.positive_prompt } : ui.negative
 
         const original_ckpt = ckpt
 
@@ -167,6 +176,8 @@ app({
                 negative: y.conditionning, //for the face detailer, we usually want the original base negative without any additional controlnets applied
                 preview: false,
                 base_sampler_opts: ui.sampler, //send in the base sampler
+                character_prompt: ui.character_prompt
+                base_negative_ui: ui.negative
             }
             const dz = await run_dz_face_detailer(run, ui.faceDetailer, fd_args)
             latent = dz.return_latent//set to new latent if it exists
