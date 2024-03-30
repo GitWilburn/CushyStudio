@@ -1,7 +1,7 @@
-import type { Runtime } from './Runtime'
 import type { OpenRouter_Models } from '../llm/OpenRouter_models'
 import type { OpenRouterRequest } from '../llm/OpenRouter_Request'
 import type { OpenRouterResponse } from '../llm/OpenRouter_Response'
+import type { Runtime } from './Runtime'
 
 import { makeAutoObservable } from 'mobx'
 
@@ -100,6 +100,7 @@ export class RuntimeLLM {
         prompt: string
         llmResponse: OpenRouterResponse
     }> => {
+        console.log('When sent, the system prompt is this: ', systemPrompt)
         const res: OpenRouterResponse = await OpenRouter_ask(this.rt.Cushy.configFile.value.OPENROUTER_API_KEY, {
             max_tokens: 300,
             model: model,
@@ -113,6 +114,87 @@ export class RuntimeLLM {
         const msg0 = res.choices[0]!.message
         if (msg0 == null) throw new Error('choice 0 is null')
         if (typeof msg0 === 'string') throw new Error('choice 0 seems to be an error')
+        return {
+            prompt: msg0.content ?? '',
+            llmResponse: res,
+        }
+    }
+    /** Request the LLM to return a function call */
+    functionCall = async (
+        /** description / instruction of  */
+        basePrompt: string,
+        model: OpenRouter_Models = 'openai/gpt-3.5-turbo-instruct',
+        systemPrompt: string = this.defaultSystemPrompt,
+        tools?: Tool[],
+        tool_choice: ToolChoice = 'auto',
+    ): Promise<{
+        prompt: string
+        llmResponse: OpenRouterResponse
+    }> => {
+        const res: OpenRouterResponse = await OpenRouter_ask(this.rt.Cushy.configFile.value.OPENROUTER_API_KEY, {
+            max_tokens: 300,
+            model: model,
+            messages: [
+                {
+                    role: 'system',
+                    content: systemPrompt,
+                },
+                {
+                    role: 'user',
+                    content: basePrompt,
+                },
+            ],
+            tools,
+            tool_choice,
+        })
+        if (res.choices.length === 0) throw new Error('no choices in response')
+        const msg0 = res.choices[0].message
+        if (msg0 == null) throw new Error('choice 0 is null')
+        if (typeof msg0 === 'string') throw new Error('choice 0 seems to be an error')
+
+        // console.log('[⚡⚡]msg0' + JSON.stringify(msg0))
+
+        // if (typeof msg0 === 'object' && msg0 !== null) {
+        //     //this seems to be the way that chatGPT responds,
+        //     if (msg0.tool_calls) {
+        //         msg0.tool_calls.forEach((tool_call) => {
+        //             const function_name = tool_call.function.name
+        //             const function_params = JSON.parse(tool_call.function.arguments)
+
+        //             console.log('[⚡⚡]function_params' + JSON.stringify(function_params))
+
+        //             const functionObject = functionsMap[function_name]
+
+        //             if (functionObject && typeof functionObject.func === 'function') {
+        //                 const functionResult = functionObject.func(function_params)
+        //                 console.log('[⚡⚡]functionResult:' + functionResult)
+        //             } else {
+        //                 throw new Error(`Function ${function_name} is not allowed or does not exist.`)
+        //             }
+        //         })
+        //     } else if (msg0.content) {
+        //         //try to parse the message because it seems like mistral responds in this format
+        //         const parsedMessage = JSON.parse(msg0.content)
+        //         // console.log('[⚡⚡]parsedMessage' + JSON.stringify(parsedMessage))
+        //         if (parsedMessage.function) {
+        //             const function_name = parsedMessage.function
+        //             const function_params = parsedMessage.parameters
+        //             // console.log('[⚡⚡]function_params' + JSON.stringify(function_params))
+
+        //             const functionObject = functionsMap[function_name]
+
+        //             if (functionObject && typeof functionObject.func === 'function') {
+        //                 const functionResult = functionObject.func(function_params)
+        //                 console.log('[⚡⚡]functionResult:' + functionResult)
+        //             } else {
+        //                 throw new Error(`Function ${function_name} is not allowed or does not exist.`)
+        //             }
+        //         } else {
+        //             console.log('[⚡⚡🔴]Error - no .function')
+        //         }
+        //     }
+        // }
+
         return {
             prompt: msg0.content ?? '',
             llmResponse: res,

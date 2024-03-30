@@ -1,0 +1,11 @@
+[
+    {
+        "function": "regional_prompt",
+        "parameters": {
+            "subject_array": [
+                { "subject": "woman with red hair", "width": 50, "height": 100, "x": 0, "y": 0 },
+                { "subject": "white haired man", "width": 50, "height": 100, "x": 25, "y": 0 }
+            ]
+        }
+    }
+]
