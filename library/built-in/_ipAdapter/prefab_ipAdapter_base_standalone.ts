@@ -79,6 +79,7 @@ export const run_ipadapter_standalone = async (
         // noise: ui.settings.noise,
         start_at: ui.settings.startAtStepPercent,
         end_at: ui.settings.endAtStepPercent,
+        embeds_scaling: 'V only',
         // unfold_batch: ui.settings.unfold_batch,
         embeds_scaling: ui.embedding_scaling,
     })._MODEL
