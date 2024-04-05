@@ -2,9 +2,12 @@ import type { OpenRouter_Models } from '../../../src/llm/OpenRouter_models'
 
 import { openRouterInfos } from '../../../src/llm/OpenRouter_infos'
 import { Cnet_args, type Cnet_return, run_cnet, ui_cnet } from '../../built-in/_controlNet/prefab_cnet'
+import { run_ipadapter_standalone, ui_ipadapter_standalone } from '../../built-in/_ipAdapter/prefab_ipAdapter_base_standalone'
+import { run_IPAdapterV2, ui_IPAdapterV2 } from '../../built-in/_ipAdapter/prefab_ipAdapter_baseV2'
 import { ui_latent_v3 } from '../../built-in/_prefabs/prefab_latent_v3'
+import { run_model, ui_model } from '../../built-in/_prefabs/prefab_model'
 import { run_prompt } from '../../built-in/_prefabs/prefab_prompt'
-import { ui_rembg_v1 } from '../../built-in/_prefabs/prefab_rembg'
+import { run_rembg_v1, ui_rembg_v1 } from '../../built-in/_prefabs/prefab_rembg'
 import { type Ctx_sampler, run_sampler } from '../../built-in/_prefabs/prefab_sampler'
 import { run_customSave, ui_customSave } from '../../built-in/_prefabs/saveSmall'
 import { epicLLM_getSystemPrompt, epicLLMSystemPromptType } from './_prefabs/_llm_systemPrompts'
@@ -17,7 +20,7 @@ import {
     ui_SDXL_aspectRatio,
 } from './_prefabs/_prefabs'
 import { run_refiners_fromImage, ui_refiners } from './_prefabs/prefab_detailer'
-import { run_model, run_selection, ui_model, ui_selection } from './_prefabs/prefab_PonyDiffusion'
+import { run_selection, ui_selection } from './_prefabs/prefab_PonyDiffusion'
 
 app({
     metadata: {
@@ -80,6 +83,13 @@ app({
             default: 'bad quality, blurry, low resolution, pixelated, noisy',
         }),
         model: ui_model(),
+        textEncoderType: form.choice({
+            appearance: 'tab',
+            items: {
+                CLIP: form.group({}),
+                SDXL: form.group({}),
+            },
+        }),
         latent: ui_latent_v3(),
         aspect: ui_SDXL_aspectRatio(),
         sampler: ui_sampler(),
@@ -90,6 +100,7 @@ app({
         removeBG: ui_rembg_v1(),
 
         controlnets: ui_cnet(),
+        ipAdapter: ui_IPAdapterV2().optional(),
         loop: form.group({
             items: () => ({
                 batchCount: form.int({ default: 1 }),
@@ -166,30 +177,13 @@ app({
             })
             let positiveString: string
             clip = posPrompt.clip
-            if (ui.model.ckpt.includes('pony') || ui.model.ckpt.includes('sdxxxl')) {
+            if (ui.model.ckpt_name.includes('pony') || ui.model.ckpt_name.includes('sdxxxl')) {
                 //only include pony if pony is selected as the model
                 positiveString = run_selection(ui.ponyAdders.ponyui) + posPrompt.promptIncludingBreaks
             } else {
                 positiveString = posPrompt.promptIncludingBreaks
             }
-            console.log('[]!!#####!EPIC?' + positiveString)
-            const posPromptNode = graph.CLIPTextEncode({ clip, text: positiveString })
-
-            run.output_text({ title: 'positive', message: positiveString })
-            const clipPos = posPrompt.clip
-            let ckptPos = posPrompt.ckpt
-            let positive: _CONDITIONING = posPromptNode._CONDITIONING
-            // let negative = x.conditionningNeg
-            //
-            const negPrompt = run_prompt({ prompt: ui.negative, clip, ckpt })
-            let negative: _CONDITIONING = graph.CLIPTextEncode({
-                clip,
-                text: negPrompt.promptIncludingBreaks,
-            })
-
-            // const y = run_prompt({ richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
-            // let negative = y.conditionning
-
+            // console.log('[]!!#####!EPIC?' + positiveString)
             // START IMAGE -------------------------------------------------------------------------------
             const epicAspect = run_SDXL_aspectRatio(ui.aspect)
 
@@ -199,6 +193,48 @@ app({
                 width_override: epicAspect.width,
                 height_override: epicAspect.height,
             })
+
+            const posPromptNode = ui.textEncoderType.SDXL
+                ? graph.CLIPTextEncodeSDXL({
+                      clip,
+                      text_g: positiveString,
+                      text_l: positiveString,
+                      width,
+                      height,
+                      target_height: height,
+                      target_width: width,
+                  })
+                : graph.CLIPTextEncode({
+                      clip,
+                      text: positiveString,
+                  })
+
+            run.output_text({ title: 'positive', message: positiveString })
+            const clipPos = posPrompt.clip
+            let ckptPos = posPrompt.ckpt
+            let positive: _CONDITIONING = posPromptNode._CONDITIONING
+            // let negative = x.conditionningNeg
+            //
+            const negPrompt = run_prompt({ prompt: ui.negative, clip, ckpt })
+            const negPromptNode = ui.textEncoderType.SDXL
+                ? graph.CLIPTextEncodeSDXL({
+                      clip,
+                      text_g: negPrompt.promptIncludingBreaks,
+                      text_l: negPrompt.promptIncludingBreaks,
+                      width,
+                      height,
+                      target_height: height,
+                      target_width: width,
+                  })
+                : graph.CLIPTextEncode({
+                      clip,
+                      text: positiveString,
+                  })
+            let negative: _CONDITIONING = negPromptNode
+
+            // const y = run_prompt({ richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
+            // let negative = y.conditionning
+
             //bit of a lazy hotwire to immediately override here, but wtf
             //
             // CNETS -------------------------------------------------------------------------------
@@ -209,6 +245,11 @@ app({
                 positive = cnet_out.cnet_positive
                 negative = cnet_out.cnet_negative
                 ckptPos = cnet_out.ckpt_return //only used for ipAdapter, otherwise it will just be a passthrough
+            }
+
+            if (ui.ipAdapter) {
+                const ipAdapter_out = await run_IPAdapterV2(ui.ipAdapter, ckptPos)
+                ckptPos = ipAdapter_out.ip_adapted_model
             }
 
             // FIRST PASS --------------------------------------------------------------------------------
@@ -251,11 +292,11 @@ app({
                 // latent = graph.VAEEncode({ pixels: image, vae })
             }
 
-            // // REMOVE BACKGROUND ---------------------------------------------------------------------
-            // if (ui.removeBG) {
-            //     const sub = run_rembg_v1(ui.removeBG, finalImage)
-            //     if (sub.length > 0) finalImage = graph.AlphaChanelRemove({ images: sub[0] })
-            // }
+            // REMOVE BACKGROUND ---------------------------------------------------------------------
+            if (ui.removeBG) {
+                const sub = run_rembg_v1(ui.removeBG, finalImage)
+                if (sub.length > 0) finalImage = graph.AlphaChanelRemove({ images: sub[0] })
+            }
 
             // // SHOW 3D --------------------------------------------------------------------------------
             // const show3d = ui.show3d
