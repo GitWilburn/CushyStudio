@@ -117,7 +117,7 @@ export class DraftL {
     checkIfShouldRestart = (): void => {
         if (!this.shouldAutoStart) return // console.log(`[⏰] no autostart`)
         if (this.lastStarted?.finished.value == null) return // console.log(`[⏰] already running`)
-        if (!this.isDirty) return // console.log(`[⏰] not dirty`)
+        //if (!this.isDirty) return // console.log(`[⏰] not dirty`)
         if (this.autoStartTimer != null) {
             // console.log(`[⏰] already scheduled; clearing prev schedule`)
             clearTimeout(this.autoStartTimer)
