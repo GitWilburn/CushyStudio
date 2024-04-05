@@ -60,6 +60,14 @@ export class Widget_markdown implements IWidget<Widget_markdown_types> {
         return md(this.form._ROOT)
     }
 
+    set markdown(value: string | ((root: any) => string)) {
+        if (typeof value === 'string' || typeof value === 'function') {
+            this.config.markdown = value
+        } else {
+            throw new Error('Markdown must be a string or function.')
+        }
+    }
+
     constructor(
         //
         public readonly form: Form,
