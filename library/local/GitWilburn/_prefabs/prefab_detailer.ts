@@ -1,3 +1,7 @@
+import { Threshold } from 'konva/lib/filters/Threshold'
+import { threadId } from 'worker_threads'
+
+import { CustomNodeFile } from '../../../../src/manager/custom-node-list/custom-node-list-types'
 import { type OutputFor, ui_sampler } from './_prefabs'
 
 export const ui_refiners = () => {
@@ -39,7 +43,19 @@ export const ui_refiners = () => {
                             }),
                         }),
                     }),
-                    eyes: form.enumOpt.Enum_UltralyticsDetectorProvider_model_name({}),
+                    eyes: form.fields(
+                        {
+                            prompt: form.string({
+                                default: 'eyes, hightly detailed, sharp details',
+                            }),
+                        },
+                        {
+                            requirements: [
+                                { type: 'customNodesByTitle', title: 'ComfyUI Impact Pack' },
+                                { type: 'customNodesByTitle', title: 'CLIPSeg' },
+                            ],
+                        },
+                    ),
                 },
             }),
             settings: form.group({
@@ -71,7 +87,7 @@ export const run_refiners_fromImage = (
     const run = getCurrentRun()
     const graph = run.nodes
     // run.add_saveImage(run.AUTO, 'base')
-    let image = finalImage
+    let image = graph.ImpactImageBatchToImageList({ image: finalImage })._IMAGE
 
     const { faces, hands, eyes } = ui.refinerType
     if (faces || hands || eyes) {
@@ -79,9 +95,10 @@ export const run_refiners_fromImage = (
     }
     if (faces) {
         const facePrompt = faces.prompt || 'perfect face, beautiful, masterpiece, hightly detailed, sharp details'
+        const provider = graph.UltralyticsDetectorProvider({ model_name: faces.detector })
         const x = graph.FaceDetailer({
-            image: graph.ImpactImageBatchToImageList({ image: finalImage }),
-            bbox_detector: (t) => t.UltralyticsDetectorProvider({ model_name: faces.detector }),
+            image: graph.ImpactImageBatchToImageList({ image: image }),
+            bbox_detector: provider._BBOX_DETECTOR,
             seed: ui.settings.sampler.seed,
             model: run.AUTO,
             clip: run.AUTO,
@@ -106,17 +123,19 @@ export const run_refiners_fromImage = (
     }
     if (hands) {
         const handsPrompt = hands.prompt || 'hand, perfect fingers, perfect anatomy, hightly detailed, sharp details'
+        const provider = graph.UltralyticsDetectorProvider({ model_name: hands.detector })
         const x = graph.FaceDetailer({
-            image: graph.ImpactImageBatchToImageList({ image: finalImage }),
-            bbox_detector: (t) => t.UltralyticsDetectorProvider({ model_name: hands.detector }),
-            seed: run.randomSeed(),
+            image,
+            bbox_detector: provider._BBOX_DETECTOR,
+            seed: ui.settings.sampler.seed,
             model: run.AUTO,
             clip: run.AUTO,
             vae: run.AUTO,
-            denoise: 0.4,
-            steps: 20,
-            sampler_name: 'dpmpp_sde',
-            scheduler: 'karras',
+            denoise: ui.settings.sampler.denoise,
+            steps: ui.settings.sampler.steps,
+            sampler_name: ui.settings.sampler.sampler_name,
+            scheduler: ui.settings.sampler.scheduler,
+            cfg: ui.settings.sampler.cfg,
             positive: graph.CLIPTextEncode({ clip: run.AUTO, text: handsPrompt }),
             negative: graph.CLIPTextEncode({ clip: run.AUTO, text: 'bad hand, bad anatomy, bad details' }),
             sam_detection_hint: 'center-1', // ❓
@@ -129,10 +148,43 @@ export const run_refiners_fromImage = (
         // run.add_saveImage(x.outputs.image)
         image = x.outputs.image
     }
-    // if (eyes) {
-    //     const eyesPrompt = eyes.prompt || 'eyes, perfect eyes, perfect anatomy, hightly detailed, sharp details'
-    //     const x = graph.FaceDetailer({
-    // }
+    //might work, but needs
+    if (eyes) {
+        const eyesPrompt = eyes.prompt || 'eyes, perfect eyes, perfect anatomy, hightly detailed, sharp details'
+        const mask = graph.CLIPSeg({
+            image: graph.ImpactImageBatchToImageList({ image: image }),
+            text: 'eyes',
+            blur: 5,
+            threshold: 0.01,
+            dilation_factor: 5,
+        })
+        //const preview = graph.PreviewImage({ images: mask.outputs.Heatmap$_Mask })
+
+        const detailer = graph.DetailerForEachDebug({
+            image,
+            segs: graph.MaskToSEGS({
+                mask: mask._MASK,
+                combined: true,
+                crop_factor: 3,
+                bbox_fill: false,
+                drop_size: 10,
+                contour_fill: false,
+            }),
+            model: run.AUTO,
+            clip: run.AUTO,
+            vae: run.AUTO,
+            denoise: ui.settings.sampler.denoise,
+            steps: ui.settings.sampler.steps,
+            sampler_name: ui.settings.sampler.sampler_name,
+            scheduler: ui.settings.sampler.scheduler,
+            cfg: ui.settings.sampler.cfg,
+            guide_size: 128,
+            positive: graph.CLIPTextEncode({ clip: run.AUTO, text: eyesPrompt }),
+            negative: graph.CLIPTextEncode({ clip: run.AUTO, text: 'bad eyes, bad anatomy, bad details' }),
+            wildcard: '',
+        })
+        image = detailer.outputs.image
+    }
 
     // run.add_saveImage(x.outputs.cropped_refined)
     // run.add_saveImage(x.outputs.cropped_enhanced_alpha)

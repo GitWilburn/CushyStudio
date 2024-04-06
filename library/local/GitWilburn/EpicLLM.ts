@@ -4,6 +4,7 @@ import { openRouterInfos } from '../../../src/llm/OpenRouter_infos'
 import { Cnet_args, type Cnet_return, run_cnet, ui_cnet } from '../../built-in/_controlNet/prefab_cnet'
 import { run_ipadapter_standalone, ui_ipadapter_standalone } from '../../built-in/_ipAdapter/prefab_ipAdapter_base_standalone'
 import { run_IPAdapterV2, ui_IPAdapterV2 } from '../../built-in/_ipAdapter/prefab_ipAdapter_baseV2'
+import { run_FaceIDV2, ui_IPAdapterFaceIDV2 } from '../../built-in/_ipAdapter/prefab_ipAdapter_faceV2'
 import { ui_latent_v3 } from '../../built-in/_prefabs/prefab_latent_v3'
 import { run_model, ui_model } from '../../built-in/_prefabs/prefab_model'
 import { run_prompt } from '../../built-in/_prefabs/prefab_prompt'
@@ -101,6 +102,7 @@ app({
 
         controlnets: ui_cnet(),
         ipAdapter: ui_IPAdapterV2().optional(),
+        faceID: ui_IPAdapterFaceIDV2().optional(),
         loop: form.group({
             items: () => ({
                 batchCount: form.int({ default: 1 }),
@@ -246,10 +248,16 @@ app({
                 negative = cnet_out.cnet_negative
                 ckptPos = cnet_out.ckpt_return //only used for ipAdapter, otherwise it will just be a passthrough
             }
-
+            let ip_adapter: _IPADAPTER | undefined
             if (ui.ipAdapter) {
-                const ipAdapter_out = await run_IPAdapterV2(ui.ipAdapter, ckptPos)
+                const ipAdapter_out = await run_IPAdapterV2(ui.ipAdapter, ckptPos, ip_adapter)
                 ckptPos = ipAdapter_out.ip_adapted_model
+                ip_adapter = ipAdapter_out.ip_adapter
+            }
+            if (ui.faceID) {
+                const faceID_out = await run_FaceIDV2(ui.faceID, ckptPos, ip_adapter)
+                ckptPos = faceID_out.ip_adapted_model
+                ip_adapter = faceID_out.ip_adapter
             }
 
             // FIRST PASS --------------------------------------------------------------------------------
