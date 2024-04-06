@@ -1,6 +1,8 @@
 // FILE GENERATED: do not edit. Changes made manually will be overwritten.
 
 export type Wildcards = {
+    body_position: string[]
+    body_in_view: string[]
     '3d_term': string[]
     actors: string[]
     actress: string[]
