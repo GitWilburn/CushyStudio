@@ -178,7 +178,7 @@ app({
             clip = posPrompt.clip
             if (ui.model.ckpt_name.includes('pony') || ui.model.ckpt_name.includes('sdxxxl')) {
                 //only include pony if pony is selected as the model
-                positiveString = run_selection(ui.ponyAdders.ponyui) + posPrompt.promptIncludingBreaks
+                positiveString = run_selection(ui.ponyAdders) + posPrompt.promptIncludingBreaks
             } else {
                 positiveString = posPrompt.promptIncludingBreaks
             }
