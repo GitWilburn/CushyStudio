@@ -21,7 +21,7 @@ export const ui_refiners = () => {
                 items: {
                     faces: form.fields(
                         {
-                            prompt: form.string({ default: facePositiveDefault }),
+                            prompt: form.string({ default: facePositiveDefault, textarea: true }),
                             detector: form.enum.Enum_UltralyticsDetectorProvider_model_name({
                                 default: 'bbox/face_yolov8m.pt',
                                 requirements: [
@@ -42,7 +42,7 @@ export const ui_refiners = () => {
                     ),
                     hands: form.fields(
                         {
-                            prompt: form.string({ default: handPositiveDefault }),
+                            prompt: form.string({ default: handPositiveDefault, textarea: true }),
                             detector: form.enum.Enum_UltralyticsDetectorProvider_model_name({
                                 default: 'bbox/hand_yolov8s.pt',
                                 requirements: [
@@ -63,6 +63,7 @@ export const ui_refiners = () => {
                         {
                             prompt: form.string({
                                 default: eyePositiveDefault,
+                                textarea: true,
                             }),
                         },
                         {
