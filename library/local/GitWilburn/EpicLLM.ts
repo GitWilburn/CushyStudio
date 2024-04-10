@@ -2,10 +2,11 @@ import type { OpenRouter_Models } from '../../../src/llm/OpenRouter_models'
 
 import { openRouterInfos } from '../../../src/llm/OpenRouter_infos'
 import { Cnet_args, type Cnet_return, run_cnet, ui_cnet } from '../../built-in/_controlNet/prefab_cnet'
-import { run_ipadapter_standalone, ui_ipadapter_standalone } from '../../built-in/_ipAdapter/prefab_ipAdapter_base_standalone'
 import { run_IPAdapterV2, ui_IPAdapterV2 } from '../../built-in/_ipAdapter/prefab_ipAdapter_baseV2'
 import { run_FaceIDV2, ui_IPAdapterFaceIDV2 } from '../../built-in/_ipAdapter/prefab_ipAdapter_faceV2'
+import { run_refiners_fromImage, ui_refiners } from '../../built-in/_prefabs/prefab_detailer'
 import { ui_latent_v3 } from '../../built-in/_prefabs/prefab_latent_v3'
+import { ui_mask } from '../../built-in/_prefabs/prefab_mask'
 import { run_model, ui_model } from '../../built-in/_prefabs/prefab_model'
 import { run_prompt } from '../../built-in/_prefabs/prefab_prompt'
 import { run_rembg_v1, ui_rembg_v1 } from '../../built-in/_prefabs/prefab_rembg'
@@ -20,7 +21,6 @@ import {
     ui_sampler,
     ui_SDXL_aspectRatio,
 } from './_prefabs/_prefabs'
-import { run_refiners_fromImage, ui_refiners } from './_prefabs/prefab_detailer'
 import { run_selection, ui_selection } from './_prefabs/prefab_PonyDiffusion'
 
 app({
@@ -72,12 +72,8 @@ app({
         userPrefacePrompt: form.prompt({
             default: ['highly detailed, masterpiece, best quality,'].join('\n'),
         }),
-        ponyAdders: form.group({
-            startCollapsed: true,
-            items: {
-                ponyui: ui_selection(),
-            },
-        }),
+        ponyAdders: ui_selection(),
+
         // askLLM: form.button({ onClick: (form) => void askLLM(form) }),
         negative: form.prompt({
             startCollapsed: true,
@@ -91,6 +87,7 @@ app({
                 SDXL: form.group({}),
             },
         }),
+        mask: ui_mask(),
         latent: ui_latent_v3(),
         aspect: ui_SDXL_aspectRatio(),
         sampler: ui_sampler(),
@@ -187,7 +184,11 @@ app({
             }
             // console.log('[]!!#####!EPIC?' + positiveString)
             // START IMAGE -------------------------------------------------------------------------------
-            const epicAspect = run_SDXL_aspectRatio(ui.aspect)
+            const epicAspect = run_SDXL_aspectRatio(
+                ui.aspect,
+                ui.latent.emptyLatent?.size.width,
+                ui.latent.emptyLatent?.size.height,
+            )
 
             let { latent, width, height } = await run_latent_vEpic({
                 opts: ui.latent,
@@ -236,6 +237,13 @@ app({
 
             // const y = run_prompt({ richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
             // let negative = y.conditionning
+
+            let mask: Maybe<_MASK>
+            if (ui.mask.mask) {
+                mask = await ui.mask.mask.image.loadInWorkflowAsMask(ui.mask.mask.mode)
+                if (ui.mask.mask.invert) mask = graph.InvertMask({ mask: mask })
+                latent = graph.SetLatentNoiseMask({ mask: mask, samples: latent })
+            }
 
             //bit of a lazy hotwire to immediately override here, but wtf
             //
