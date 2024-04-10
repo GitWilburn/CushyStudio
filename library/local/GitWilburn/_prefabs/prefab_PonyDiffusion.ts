@@ -12,8 +12,8 @@ const ckpts = cushy.managerRepository.getKnownCheckpoints()
 export const ui_selection = () => {
     const form = getCurrentForm()
 
-    return form.group({
-        items: () => ({
+    return form.fields(
+        {
             score: form.choices({
                 default: {
                     score_9: true,
@@ -63,8 +63,27 @@ export const ui_selection = () => {
                     rating_explicit: form.group({}),
                 },
             }),
-        }),
-    })
+        },
+        {
+            summary: (ui) => {
+                return [
+                    `${ui.rating.rating_safe ? '🟢safe' : ''}`,
+                    ` ${ui.rating.rating_questionable ? '🟢questionable' : ''}`,
+                    ` ${ui.rating.rating_explicit ? '🟢explicit' : ''}`,
+                    ` ${ui.score.score_9 ? '🟢9' : ''}`,
+                    ` ${ui.score.score_8_up ? '🟢8' : ''}`,
+                    ` ${ui.score.score_7_up ? '🟢7' : ''}`,
+                    ` ${ui.score.score_6_up ? '🟢6' : ''}`,
+                    ` ${ui.score.score_5_up ? '🟢5' : ''}`,
+                    ` ${ui.score.score_4_up ? '🟢4' : ''}`,
+                    ` ${ui.source.source_pony ? '🟢pony' : ''}`,
+                    ` ${ui.source.source_furry ? '🟢furry' : ''}`,
+                    ` ${ui.source.source_cartoon ? '🟢cartoon' : ''}`,
+                    ` ${ui.source.source_anime ? '🟢anime' : ''}`,
+                ].join('')
+            },
+        },
+    )
 }
 
 export const run_selection = (group: OutputFor<typeof ui_selection>) => {
