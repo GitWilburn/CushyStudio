@@ -35,44 +35,43 @@ export const ui_sampler = (p?: {
 
 export const ui_SDXL_aspectRatio = () => {
     const form: FormBuilder = getCurrentForm()
-    return form.group({
-        items: {
-            AspectRatio: form.choice({
-                appearance: 'tab',
-                default: '_1024x1024',
-                items: {
-                    _768x512: form.group({}),
-                    _512x768: form.group({}),
-                    _512x512: form.group({}),
-                    _704x1408: form.group({}),
-                    _704x1344: form.group({}),
-                    _768x1344: form.group({}),
-                    _768x1280: form.group({}),
-                    _832x1216: form.group({}),
-                    _832x1152: form.group({}),
-                    _896x1152: form.group({}),
-                    _896x1088: form.group({}),
-                    _960x1088: form.group({}),
-                    _960x1024: form.group({}),
-                    _1024x1024: form.group({}),
-                    _1024x960: form.group({}),
-                    _1088x960: form.group({}),
-                    _1088x896: form.group({}),
-                    _1152x896: form.group({}),
-                    _1152x832: form.group({}),
-                    _1216x832: form.group({}),
-                    _1280x768: form.group({}),
-                    _1344x768: form.group({}),
-                    _1344x704: form.group({}),
-                    _1408x704: form.group({}),
-                    _1472x704: form.group({}),
-                    _1536x640: form.group({}),
-                    _1600x640: form.group({}),
-                    _1664x576: form.group({}),
-                    _1728x576: form.group({}),
-                },
-            }),
-        },
+    return form.fields({
+        AspectRatio: form.choice({
+            appearance: 'tab',
+            default: '_1024x1024',
+            items: {
+                _custom: form.group({}),
+                _768x512: form.group({}),
+                _512x768: form.group({}),
+                _512x512: form.group({}),
+                _704x1408: form.group({}),
+                _704x1344: form.group({}),
+                _768x1344: form.group({}),
+                _768x1280: form.group({}),
+                _832x1216: form.group({}),
+                _832x1152: form.group({}),
+                _896x1152: form.group({}),
+                _896x1088: form.group({}),
+                _960x1088: form.group({}),
+                _960x1024: form.group({}),
+                _1024x1024: form.group({}),
+                _1024x960: form.group({}),
+                _1088x960: form.group({}),
+                _1088x896: form.group({}),
+                _1152x896: form.group({}),
+                _1152x832: form.group({}),
+                _1216x832: form.group({}),
+                _1280x768: form.group({}),
+                _1344x768: form.group({}),
+                _1344x704: form.group({}),
+                _1408x704: form.group({}),
+                _1472x704: form.group({}),
+                _1536x640: form.group({}),
+                _1600x640: form.group({}),
+                _1664x576: form.group({}),
+                _1728x576: form.group({}),
+            },
+        }),
     })
 }
 const parseDimensions = (dimensions: string): { width: number; height: number } => {
@@ -104,17 +103,16 @@ export const run_latent_vEpic = async (p: {
     const opts = p.opts
 
     // misc calculatiosn
-    let width: number
-    let height: number
+    const width = p.width_override || opts.emptyLatent?.size.width || 1024
+    const height = p.height_override || opts.emptyLatent?.size.height || 1024
     let latent: HasSingle_LATENT
 
     // case 1. start form image
     if (opts.image) {
         const _img = run.loadImage(opts.image.image.imageID)
         const image = await _img.loadInWorkflow()
-        latent = graph.VAEEncode({ pixels: image, vae: p.vae })
-        width = _img.width
-        height = _img.height
+        const rescaled = graph.ImageScale({ image, width, height, crop: 'center', upscale_method: 'lanczos' })
+        latent = graph.VAEEncode({ pixels: rescaled._IMAGE, vae: p.vae })
 
         if (opts.image.batchSize > 1) {
             latent = graph.RepeatLatentBatch({
@@ -126,8 +124,6 @@ export const run_latent_vEpic = async (p: {
 
     // case 2. start form empty latent
     else if (opts.emptyLatent) {
-        width = p.width_override ?? opts.emptyLatent.size.width
-        height = p.height_override ?? opts.emptyLatent.size.height
         latent = graph.EmptyLatentImage({
             batch_size: opts.emptyLatent.batchSize ?? 1,
             height: height,
@@ -144,9 +140,16 @@ export const run_latent_vEpic = async (p: {
     return { latent, width, height }
 }
 
-export const run_SDXL_aspectRatio = (ui: OutputFor<typeof ui_SDXL_aspectRatio>) => {
+export const run_SDXL_aspectRatio = (
+    ui: OutputFor<typeof ui_SDXL_aspectRatio>,
+    customWidth: number = 1024,
+    customHeight: number = 1024,
+): { width: number; height: number } => {
     //just tired of messing with this
     //got to be a better way to do this, but i'm too typscript stupid
+    if (ui.AspectRatio._custom) {
+        return { width: customWidth, height: customHeight }
+    }
     if (ui.AspectRatio._704x1408) {
         return parseDimensions('704x1408')
     }
