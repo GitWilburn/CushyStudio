@@ -311,7 +311,7 @@ app({
             // REMOVE BACKGROUND ---------------------------------------------------------------------
             if (ui.removeBG) {
                 const sub = run_rembg_v1(ui.removeBG, finalImage)
-                if (sub.length > 0) finalImage = graph.AlphaChanelRemove({ images: sub[0] })
+                if (sub.length > 0 && sub[0]) finalImage = graph.AlphaChanelRemove({ images: sub[0] })
             }
 
             // // SHOW 3D --------------------------------------------------------------------------------
