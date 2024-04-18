@@ -1,7 +1,10 @@
 import type { GetWidgetResult } from '../../../../src/controls/IWidget'
 import type { FormBuilder, Runtime } from '../../../../src/CUSHY'
+import type { OpenRouter_Models } from '../../../../src/llm/OpenRouter_models'
 import type { ui_latent_v3 } from '../../../built-in/_prefabs/prefab_latent_v3'
 
+import { GetWidgetState } from '../../../../src/controls/IWidget'
+import { openRouterInfos } from '../../../../src/llm/OpenRouter_infos'
 import { type Ctx_sampler, run_sampler } from '../../../built-in/_prefabs/prefab_sampler'
 
 // this should be a default
@@ -91,6 +94,58 @@ const parseDimensions = (dimensions: string): { width: number; height: number } 
     return { width, height }
 }
 
+const clearLLMresponse = async () => {
+    //doesn't work because there is no run in context when clicked from the form
+    console.log('[⚡⚡] clicked')
+    const run = getCurrentRun()
+    run.formInstance.fields.promptFromLlm.fields.llmResponse.markdown = ''
+}
+
+export const ui_epic_llm = () => {
+    const form = getCurrentForm()
+    return form.group({
+        label: 'LLM Expanded Prompt',
+        items: () => ({
+            llmSettings: form.group({
+                items: () => ({
+                    llmModel: form.selectOne({
+                        choices: Object.entries(openRouterInfos).map(([id, info]) => ({
+                            id: id as OpenRouter_Models,
+                            label: info.name,
+                        })),
+                    }),
+                    llmAction: form.choice({
+                        appearance: 'tab',
+                        default: 'Complete',
+                        items: {
+                            Complete: form.group({}),
+                            Cleanup: form.group({}),
+                            Augment: form.group({}),
+                            RandomName: form.group({}),
+                        },
+                    }),
+                }),
+                startCollapsed: true,
+            }),
+            promptForExpansion: form.string({ textarea: true }),
+            // runLlm: form.inlineRun({ text: 'Ask LLM', kind: 'special' }),
+            runLLM: form.choices({
+                appearance: 'tab',
+                default: 'RunSD',
+                items: {
+                    AskLLM: form.group({}),
+                    RunSD: form.group({}),
+                },
+            }),
+            llmResponse: form.markdown({
+                markdown: ``,
+            }),
+            clear: form.button({ onClick: () => void clearLLMresponse() }),
+            //llmResponse: form.promptV2({}),
+        }),
+    })
+}
+
 export const run_latent_vEpic = async (p: {
     opts: OutputFor<typeof ui_latent_v3>
     vae: _VAE
@@ -110,9 +165,24 @@ export const run_latent_vEpic = async (p: {
     // case 1. start form image
     if (opts.image) {
         const _img = run.loadImage(opts.image.image.imageID)
-        const image = await _img.loadInWorkflow()
-        const rescaled = graph.ImageScale({ image, width, height, crop: 'center', upscale_method: 'lanczos' })
-        latent = graph.VAEEncode({ pixels: rescaled._IMAGE, vae: p.vae })
+        const loadedImage = await _img.loadInWorkflow()
+        let rescaled: _IMAGE = loadedImage
+        if (opts.image.scale?.type.scaleToSelectedSize) {
+            rescaled = graph.ImageScale({
+                image: loadedImage,
+                width: opts.image.scale.type.scaleToSelectedSize.width,
+                height: opts.image.scale.type.scaleToSelectedSize.width,
+                crop: 'center',
+                upscale_method: 'lanczos',
+            })
+        } else if (opts.image.scale?.type.scaleBy) {
+            rescaled = graph.ImageScaleBy({
+                image: loadedImage,
+                scale_by: opts.image.scale.type.scaleBy,
+                upscale_method: 'lanczos',
+            })
+        }
+        latent = graph.VAEEncode({ pixels: rescaled, vae: p.vae })
 
         if (opts.image.batchSize > 1) {
             latent = graph.RepeatLatentBatch({
@@ -122,7 +192,7 @@ export const run_latent_vEpic = async (p: {
         }
     }
 
-    // case 2. start form empty latent
+    // case 2. start from empty latent
     else if (opts.emptyLatent) {
         latent = graph.EmptyLatentImage({
             batch_size: opts.emptyLatent.batchSize ?? 1,

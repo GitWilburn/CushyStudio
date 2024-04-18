@@ -58,6 +58,14 @@ export const ImageDropdownMenuUI = observer(function ImageDropdownMenuUI_(p: { i
                 MiniPaint
             </MenuItem>
 
+            <div className='divider divider-start my-1'>Meta</div>
+            <MenuItem
+                // icon={<span className='material-symbols-outlined'>settings_overscan</span>}
+                disabled={false} //{!img?.absPath}
+                onClick={() => console.log(`🟢🟢🟢🟢🟢This is where the world ends. ${img?.absPath}`)}
+            >
+                View Prompt Metadata
+            </MenuItem>
             <div className='divider divider-start my-1'>FileSystem</div>
             <MenuItem
                 icon={<span className='material-symbols-outlined'>folder</span>}

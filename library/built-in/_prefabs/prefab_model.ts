@@ -12,6 +12,7 @@ export const ui_model = () => {
             if (ui.extra.freeUv2) out += ' + FreeUv2'
             if (ui.extra.vae) out += ' + VAE'
             if (ui.extra.clipSkip) out += ` + ClipSkip(${ui.extra.clipSkip})`
+            if (ui.extra.pag) out += ` + PAG(${ui.extra.pag.scale})`
             if (ui.extra.sag) out += ` + SAG(${ui.extra.sag.scale}/${ui.extra.sag.blur_sigma})`
             return out
         },
@@ -31,10 +32,39 @@ export const ui_model = () => {
                     clipSkip: form.int({ label: 'Clip Skip', default: 1, min: 1, max: 5 }),
                     freeU: form.group(),
                     freeUv2: form.group(),
+                    pag: form.fields(
+                        {
+                            includeInHiRes: form.bool({ default: true }),
+                            scale: form.float({
+                                default: 0.9,
+                                min: 0,
+                                softMax: 6,
+                                max: 100,
+                                step: 0.1,
+                                tooltip:
+                                    'PAG scale, has some resemblance to CFG scale - higher values can both increase structural coherence of the image and oversaturate/fry it entirely. Note: Default for standard models is 3, but that fries lightning and turbo models, so lower it accordingly. Try 0.9 ish for lightning.',
+                            }),
+                            adaptiveScale: form.float({
+                                default: 0,
+                                min: 0,
+                                max: 1,
+                                step: 0.1,
+                                tooltip:
+                                    'PAG dampening factor, it penalizes PAG during late denoising stages, resulting in overall speedup: 0.0 means no penalty and 1.0 completely removes PAG.',
+                            }),
+                        },
+                        {
+                            startCollapsed: true,
+                            summary: (ui) => {
+                                return `scale:${ui.scale}`
+                            },
+                        },
+                    ),
                     sag: form.group({
                         startCollapsed: true,
                         tooltip: 'Self Attention Guidance can improve image quality but runs slower',
                         items: {
+                            includeInHiRes: form.bool({ default: true }),
                             scale: form.float({ default: 0.5, step: 0.1, min: -2.0, max: 5.0 }),
                             blur_sigma: form.float({ default: 2.0, step: 0.1, min: 0, max: 10.0 }),
                         },
@@ -61,7 +91,6 @@ export const run_model = (
 } => {
     const run = getCurrentRun()
     const graph = run.nodes
-
     // 1. MODEL
     let ckptLoader
     if (ui.checkpointConfig) {
@@ -93,15 +122,24 @@ export const run_model = (
     if (ui.extra.freeUv2) ckpt = graph.FreeU$_V2({ model: ckpt })
     else if (ui.extra.freeU) ckpt = graph.FreeU({ model: ckpt })
 
-    // 5. Optional SAG - Self Attention Guidance
-    if (ui.extra.sag) {
-        ckpt = graph.SelfAttentionGuidance({ scale: ui.extra.sag.scale, blur_sigma: ui.extra.sag.blur_sigma, model: ckpt })
-    }
-
     /* Rescale CFG */
     if (ui.extra.rescaleCFG) {
         ckpt = graph.RescaleCFG({ model: ckpt, multiplier: ui.extra.rescaleCFG })
     }
 
     return { ckpt, vae, clip }
+}
+
+export const run_model_modifiers = (ui: OutputFor<typeof ui_model>, ckpt: _MODEL, forHiRes?: boolean): _MODEL => {
+    const run = getCurrentRun()
+    const graph = run.nodes
+    // 5. Optional SAG - Self Attention Guidance
+    if (ui.extra.sag && (!forHiRes || (ui.extra.sag.includeInHiRes && forHiRes))) {
+        ckpt = graph.SelfAttentionGuidance({ scale: ui.extra.sag.scale, blur_sigma: ui.extra.sag.blur_sigma, model: ckpt })
+    }
+    // 6. Optional PAG - Perturbed Attention Guidance
+    if (ui.extra.pag && (!forHiRes || (ui.extra.pag.includeInHiRes && forHiRes))) {
+        ckpt = graph.PerturbedAttention({ scale: ui.extra.pag.scale, model: ckpt, adaptive_scale: ui.extra.pag.adaptiveScale })
+    }
+    return ckpt
 }

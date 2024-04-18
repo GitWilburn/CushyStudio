@@ -1,4 +1,5 @@
 import type { OpenRouter_Models } from '../../../src/llm/OpenRouter_models'
+import type { OutputFor } from '../../built-in/_prefabs/_prefabs'
 
 import { openRouterInfos } from '../../../src/llm/OpenRouter_infos'
 import { Cnet_args, type Cnet_return, run_cnet, ui_cnet } from '../../built-in/_controlNet/prefab_cnet'
@@ -7,7 +8,7 @@ import { run_FaceIDV2, ui_IPAdapterFaceIDV2 } from '../../built-in/_ipAdapter/pr
 import { run_refiners_fromImage, ui_refiners } from '../../built-in/_prefabs/prefab_detailer'
 import { ui_latent_v3 } from '../../built-in/_prefabs/prefab_latent_v3'
 import { ui_mask } from '../../built-in/_prefabs/prefab_mask'
-import { run_model, ui_model } from '../../built-in/_prefabs/prefab_model'
+import { run_model, run_model_modifiers, ui_model } from '../../built-in/_prefabs/prefab_model'
 import { run_prompt } from '../../built-in/_prefabs/prefab_prompt'
 import { run_rembg_v1, ui_rembg_v1 } from '../../built-in/_prefabs/prefab_rembg'
 import { type Ctx_sampler, run_sampler } from '../../built-in/_prefabs/prefab_sampler'
@@ -17,12 +18,61 @@ import {
     run_highresfix,
     run_latent_vEpic,
     run_SDXL_aspectRatio,
+    ui_epic_llm,
     ui_highresfix,
     ui_sampler,
     ui_SDXL_aspectRatio,
 } from './_prefabs/_prefabs'
 import { run_selection, ui_selection } from './_prefabs/prefab_PonyDiffusion'
+import { view_basicDraftParameters } from './_prefabs/view_basicParameters'
 
+const ui_promptList = () => {
+    const form = getCurrentForm()
+    return form.list({ element: form.promptV2() })
+}
+
+const run_promptList = (p: {
+    opts: OutputFor<typeof ui_promptList>
+    conditioning: _CONDITIONING
+    width?: number
+    height?: number
+    encoderTypeSDXL?: boolean
+    promptPreface?: string
+    promptSuffix?: string
+}): { conditioning: _CONDITIONING } => {
+    const run = getCurrentRun()
+    const graph = run.nodes
+    let newConditioning = p.conditioning
+
+    for (const prompt of p.opts) {
+        const promptReturn = run_prompt({
+            prompt: prompt,
+            clip: run.AUTO,
+            ckpt: run.AUTO,
+            printWildcards: true,
+        })
+        const promptText = p.promptPreface + promptReturn.promptIncludingBreaks + p.promptSuffix
+        const promptEncode = p.encoderTypeSDXL
+            ? run.nodes.CLIPTextEncodeSDXL({
+                  clip: run.AUTO,
+                  text_g: promptText,
+                  text_l: promptText,
+                  width: p.width ?? 1024,
+                  height: p.height ?? 1024,
+                  target_height: p.width ?? 1024,
+                  target_width: p.height ?? 1024,
+              })
+            : graph.CLIPTextEncode({
+                  clip: run.AUTO,
+                  text: promptText,
+              })
+        newConditioning = run.nodes.ConditioningConcat({
+            conditioning_from: newConditioning,
+            conditioning_to: promptEncode._CONDITIONING,
+        })
+    }
+    return { conditioning: newConditioning }
+}
 app({
     metadata: {
         name: 'EPIC Diffusion',
@@ -30,45 +80,8 @@ app({
         description: 'EPIC diffusion with LLM expansion.',
     },
     ui: (form) => ({
-        promptFromLlm: form.group({
-            label: 'LLM Expanded Prompt',
-            items: () => ({
-                llmSettings: form.group({
-                    items: () => ({
-                        llmModel: form.selectOne({
-                            choices: Object.entries(openRouterInfos).map(([id, info]) => ({
-                                id: id as OpenRouter_Models,
-                                label: info.name,
-                            })),
-                        }),
-                        llmAction: form.choice({
-                            appearance: 'tab',
-                            default: 'Complete',
-                            items: {
-                                Complete: form.group({}),
-                                Cleanup: form.group({}),
-                                Augment: form.group({}),
-                                RandomName: form.group({}),
-                            },
-                        }),
-                    }),
-                }),
-                promptForExpansion: form.string({ textarea: true }),
-                // runLlm: form.inlineRun({ text: 'Ask LLM', kind: 'special' }),
-                runLLM: form.choices({
-                    appearance: 'tab',
-                    default: 'AskLLM',
-                    items: {
-                        AskLLM: form.group({}),
-                        RunSD: form.group({}),
-                    },
-                }),
-                llmResponse: form.markdown({
-                    markdown: ``,
-                }),
-                //llmResponse: form.promptV2({}),
-            }),
-        }),
+        promptList: ui_promptList(),
+        promptFromLlm: ui_epic_llm(),
         userPrefacePrompt: form.prompt({
             default: ['highly detailed, masterpiece, best quality,'].join('\n'),
         }),
@@ -126,12 +139,7 @@ app({
                 return
             }
             const llmAction = ui.promptFromLlm.llmSettings.llmAction
-            // const llmSystemMessage = ''
-            // const llmSystemMessage = llmAction.Complete
-            //     ? CompleteRewriteSystemMessage
-            //     : llmAction.Cleanup
-            //     ? PartialRewriteSystemMessage
-            //     : KeywordAugmentRewriteSystemMessage
+
             let llmSystemMessage: string
             if (ui.promptFromLlm.llmSettings.llmAction.Cleanup) {
                 llmSystemMessage = epicLLM_getSystemPrompt(epicLLMSystemPromptType.partial)
@@ -164,7 +172,7 @@ app({
             const graph = run.nodes
             // MODEL, clip skip, vae, etc. ---------------------------------------------------------------
             let { ckpt, vae, clip } = run_model(ui.model)
-
+            const ponyAdders = run_selection(ui.ponyAdders)
             // RICH PROMPT ENGINE -------- ---------------------------------------------------------------
             // const joinedPrompt = { text: ui.userPrefacePrompt.text + ', ' + expandedPrompt }
             const joinedPrompt = { text: ui.userPrefacePrompt.text + ', ' + expandedPrompt }
@@ -176,9 +184,13 @@ app({
             })
             let positiveString: string
             clip = posPrompt.clip
-            if (ui.model.ckpt_name.includes('pony') || ui.model.ckpt_name.includes('sdxxxl')) {
+            if (
+                ui.model.ckpt_name.includes('pony') ||
+                ui.model.ckpt_name.includes('sdxxxl') ||
+                ui.model.ckpt_name.includes('PNY')
+            ) {
                 //only include pony if pony is selected as the model
-                positiveString = run_selection(ui.ponyAdders) + posPrompt.promptIncludingBreaks
+                positiveString = ponyAdders + posPrompt.promptIncludingBreaks
             } else {
                 positiveString = posPrompt.promptIncludingBreaks
             }
@@ -235,6 +247,16 @@ app({
                   })
             let negative: _CONDITIONING = negPromptNode
 
+            const promptList = run_promptList({
+                opts: ui.promptList,
+                conditioning: positive,
+                encoderTypeSDXL: ui.textEncoderType.SDXL ? true : false,
+                width,
+                height,
+                promptPreface: ponyAdders,
+            })
+            positive = promptList.conditioning
+
             // const y = run_prompt({ richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
             // let negative = y.conditionning
 
@@ -270,7 +292,7 @@ app({
 
             // FIRST PASS --------------------------------------------------------------------------------
             const ctx_sampler: Ctx_sampler = {
-                ckpt: ckptPos,
+                ckpt: run_model_modifiers(ui.model, ckptPos, false),
                 clip: clipPos,
                 vae,
                 latent,
@@ -285,7 +307,7 @@ app({
             const HRF = ui.highResFix
             if (HRF) {
                 const ctx_sampler_fix: Ctx_sampler = {
-                    ckpt: ckptPos,
+                    ckpt: run_model_modifiers(ui.model, ckptPos, true),
                     clip: clipPos,
                     vae,
                     latent,
@@ -342,7 +364,18 @@ app({
             // if (ui.upscale) {
             //     finalImage = run_upscaleWithModel(ui.upscale, { image: finalImage })
             // }
-
+            run.output_custom({
+                view: view_basicDraftParameters,
+                params: {
+                    positivePrompt: JSON.stringify(ui.userPrefacePrompt.serial.val),
+                    negativePrompt: JSON.stringify(ui.negative.serial.val),
+                    denoise: ui.sampler.denoise,
+                    ksampler: ui.sampler.sampler_name,
+                    scheduler: ui.sampler.scheduler,
+                    seed: ui.sampler.seed,
+                    uiState: JSON.stringify(ui),
+                },
+            })
             const saveFormat = run_customSave(ui.customSave)
             await run.PROMPT({ saveFormat })
 

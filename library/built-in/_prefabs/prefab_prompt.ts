@@ -4,19 +4,21 @@ export const run_prompt = (p: {
     clip?: _CLIP
     /** recommanded, but if left empty, AUTO will be used */
     ckpt?: _MODEL
-
+    hiresCkpt?: _MODEL
     printWildcards?: boolean
     seed?: number
 }): {
     promptIncludingBreaks: string
     clip: _CLIP
     ckpt: _MODEL
+    hiresCkpt?: _MODEL
     readonly conditioning: _CONDITIONING
 } => {
     const run = getCurrentRun()
     const richPrompt = p.prompt
     let clip = p.clip ?? run.AUTO
     let ckpt = p.ckpt ?? run.AUTO
+    let hiresCkpt = p.hiresCkpt ?? run.AUTO
     const CX = run.compilePrompt({
         text: richPrompt.text,
         printWildcards: p.printWildcards,

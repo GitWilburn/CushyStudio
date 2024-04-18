@@ -18,7 +18,31 @@ export const ui_latent_v3 = () => {
             image: form.group({
                 collapsed: false,
                 border: false,
-                items: { batchSize, image: form.image() },
+                items: {
+                    batchSize,
+                    image: form.image(),
+                    scale: form
+                        .fields(
+                            {
+                                type: form.choice({
+                                    appearance: 'tab',
+                                    items: {
+                                        scaleBy: form.float({ default: 1, step: 0.25, min: 0, max: 4 }),
+                                        scaleToSelectedSize: form.fields({
+                                            width: form.float({ default: 1024 }),
+                                            height: form.float({ default: 1024 }),
+                                        }),
+                                    },
+                                }),
+                            },
+                            {
+                                summary: (ui) => {
+                                    return `${ui.type.scaleBy}`
+                                },
+                            },
+                        )
+                        .optional(),
+                },
             }),
         },
     })
