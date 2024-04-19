@@ -34,7 +34,12 @@ export const ui_model = () => {
                     freeUv2: form.group(),
                     pag: form.fields(
                         {
-                            includeInHiRes: form.bool({ default: true }),
+                            include: form.choices({
+                                items: { base: form.fields({}), hiRes: form.fields({}) },
+                                appearance: 'tab',
+
+                                default: { base: true, hiRes: true },
+                            }),
                             scale: form.float({
                                 default: 0.9,
                                 min: 0,
@@ -64,7 +69,12 @@ export const ui_model = () => {
                         startCollapsed: true,
                         tooltip: 'Self Attention Guidance can improve image quality but runs slower',
                         items: {
-                            includeInHiRes: form.bool({ default: true }),
+                            include: form.choices({
+                                items: { base: form.fields({}), hiRes: form.fields({}) },
+                                appearance: 'tab',
+                                default: { base: true, hiRes: false },
+                            }),
+                            // includeInHiRes: form.bool({ default: true }),
                             scale: form.float({ default: 0.5, step: 0.1, min: -2.0, max: 5.0 }),
                             blur_sigma: form.float({ default: 2.0, step: 0.1, min: 0, max: 10.0 }),
                         },
@@ -134,11 +144,11 @@ export const run_model_modifiers = (ui: OutputFor<typeof ui_model>, ckpt: _MODEL
     const run = getCurrentRun()
     const graph = run.nodes
     // 5. Optional SAG - Self Attention Guidance
-    if (ui.extra.sag && (!forHiRes || (ui.extra.sag.includeInHiRes && forHiRes))) {
+    if (ui.extra.sag && ((!forHiRes && ui.extra.sag.include.base) || (forHiRes && ui.extra.sag.include.hiRes))) {
         ckpt = graph.SelfAttentionGuidance({ scale: ui.extra.sag.scale, blur_sigma: ui.extra.sag.blur_sigma, model: ckpt })
     }
     // 6. Optional PAG - Perturbed Attention Guidance
-    if (ui.extra.pag && (!forHiRes || (ui.extra.pag.includeInHiRes && forHiRes))) {
+    if (ui.extra.pag && ((!forHiRes && ui.extra.pag.include.base) || (forHiRes && ui.extra.pag.include.hiRes))) {
         ckpt = graph.PerturbedAttention({ scale: ui.extra.pag.scale, model: ckpt, adaptive_scale: ui.extra.pag.adaptiveScale })
     }
     return ckpt
