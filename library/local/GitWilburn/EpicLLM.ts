@@ -187,6 +187,7 @@ app({
             if (
                 ui.model.ckpt_name.includes('pony') ||
                 ui.model.ckpt_name.includes('sdxxxl') ||
+                ui.model.ckpt_name.includes('PDXL') ||
                 ui.model.ckpt_name.includes('PNY')
             ) {
                 //only include pony if pony is selected as the model
