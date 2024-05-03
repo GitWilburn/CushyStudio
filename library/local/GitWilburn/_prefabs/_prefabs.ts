@@ -162,6 +162,7 @@ export const run_latent_vEpic = async (p: {
     const height = p.height_override || opts.emptyLatent?.size.height || 1024
     let latent: HasSingle_LATENT
 
+    let blankLatent = false
     // case 1. start form image
     if (opts.image) {
         const _img = run.loadImage(opts.image.image.imageID)
@@ -181,6 +182,15 @@ export const run_latent_vEpic = async (p: {
                 scale_by: opts.image.scale.type.scaleBy,
                 upscale_method: 'lanczos',
             })
+        } else if (opts.image.scale?.type.scaleAuto) {
+            if (width != _img.width || height != _img.height) {
+                const max = Math.min(width / _img.width, height / _img.height)
+                rescaled = graph.ImageScaleBy({
+                    image: loadedImage,
+                    scale_by: max,
+                    upscale_method: max > 1 ? 'area' : 'lanczos',
+                })
+            }
         }
         latent = graph.VAEEncode({ pixels: rescaled, vae: p.vae })
 
@@ -199,6 +209,7 @@ export const run_latent_vEpic = async (p: {
             height: height,
             width: width,
         })
+        blankLatent = true
     }
 
     // default case
@@ -207,7 +218,7 @@ export const run_latent_vEpic = async (p: {
     }
 
     // return everything
-    return { latent, width, height }
+    return { latent, width, height, blankLatent }
 }
 
 export const run_SDXL_aspectRatio = (
