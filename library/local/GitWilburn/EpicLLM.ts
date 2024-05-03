@@ -203,7 +203,7 @@ app({
                 ui.latent.emptyLatent?.size.height,
             )
 
-            let { latent, width, height } = await run_latent_vEpic({
+            let { latent, width, height, blankLatent } = await run_latent_vEpic({
                 opts: ui.latent,
                 vae,
                 width_override: epicAspect.width,
@@ -301,7 +301,7 @@ app({
                 negative: negative,
                 preview: false,
             }
-            let firstSampler = run_sampler(run, ui.sampler, ctx_sampler)
+            let firstSampler = run_sampler(run, ui.sampler, ctx_sampler, blankLatent)
             latent = firstSampler.latent
 
             // SECOND PASS (a.k.a. highres fix) ---------------------------------------------------------
