@@ -1,7 +1,5 @@
-import type { OpenRouter_Models } from '../../../src/llm/OpenRouter_models'
 import type { OutputFor } from '../../built-in/_prefabs/_prefabs'
 
-import { openRouterInfos } from '../../../src/llm/OpenRouter_infos'
 import { Cnet_args, type Cnet_return, run_cnet, ui_cnet } from '../../built-in/_controlNet/prefab_cnet'
 import { run_IPAdapterV2, ui_IPAdapterV2 } from '../../built-in/_ipAdapter/prefab_ipAdapter_baseV2'
 import { run_FaceIDV2, ui_IPAdapterFaceIDV2 } from '../../built-in/_ipAdapter/prefab_ipAdapter_faceV2'
@@ -14,6 +12,7 @@ import { run_rembg_v1, ui_rembg_v1 } from '../../built-in/_prefabs/prefab_rembg'
 import { type Ctx_sampler, run_sampler } from '../../built-in/_prefabs/prefab_sampler'
 import { run_customSave, ui_customSave } from '../../built-in/_prefabs/saveSmall'
 import { epicLLM_getSystemPrompt, epicLLMSystemPromptType } from './_prefabs/_llm_systemPrompts'
+// import { epicLLM_getSystemPrompt, epicLLMSystemPromptType } from './_prefabs/_llm_systemPrompts'
 import {
     run_highresfix,
     run_latent_vEpic,
@@ -28,7 +27,27 @@ import { view_basicDraftParameters } from './_prefabs/view_basicParameters'
 
 const ui_promptList = () => {
     const form = getCurrentForm()
-    return form.list({ element: form.promptV2() })
+    return form.list({
+        element: form.fields(
+            {
+                prompt: form.promptV2(),
+                joinType: form.choice({
+                    items: {
+                        concat: form.fields({}),
+                        combine: form.fields({}),
+                        average: form.fields({ strength: form.float({ default: 1 }) }),
+                    },
+                    appearance: 'tab',
+                    startCollapsed: true,
+                }),
+            },
+            {
+                summary: (ui) => {
+                    return `${ui.joinType}:${ui.prompt}`
+                },
+            },
+        ),
+    })
 }
 
 const run_promptList = (p: {
@@ -44,9 +63,9 @@ const run_promptList = (p: {
     const graph = run.nodes
     let newConditioning = p.conditioning
 
-    for (const prompt of p.opts) {
+    for (const item of p.opts) {
         const promptReturn = run_prompt({
-            prompt: prompt,
+            prompt: item.prompt,
             clip: run.AUTO,
             ckpt: run.AUTO,
             printWildcards: true,
@@ -66,10 +85,23 @@ const run_promptList = (p: {
                   clip: run.AUTO,
                   text: promptText,
               })
+        if (item.joinType.average) {
+            newConditioning = run.nodes.ConditioningAverage({
+                conditioning_from: newConditioning,
+                conditioning_to: promptEncode._CONDITIONING,
+                conditioning_to_strength: item.joinType.average?.strength,
+            })
+        } else if (item.joinType.combine) {
+            newConditioning = run.nodes.ConditioningCombine({
+                conditioning_1: promptEncode._CONDITIONING,
+                conditioning_2: newConditioning,
+            })
+        } else {
         newConditioning = run.nodes.ConditioningConcat({
             conditioning_from: newConditioning,
             conditioning_to: promptEncode._CONDITIONING,
         })
+    }
     }
     return { conditioning: newConditioning }
 }
