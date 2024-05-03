@@ -27,6 +27,7 @@ export const ui_latent_v3 = () => {
                                 type: form.choice({
                                     appearance: 'tab',
                                     items: {
+                                        scaleAuto: form.fields({}),
                                         scaleBy: form.float({ default: 1, step: 0.25, min: 0, max: 4 }),
                                         scaleToSelectedSize: form.fields({
                                             width: form.float({ default: 1024 }),
@@ -48,24 +49,31 @@ export const ui_latent_v3 = () => {
     })
 }
 
-export const run_latent_v3 = async (p: { opts: OutputFor<typeof ui_latent_v3>; vae: _VAE }) => {
+export const run_latent_v3 = async (p: {
+    opts: OutputFor<typeof ui_latent_v3>
+    vae: _VAE
+    width_override?: number
+    height_override?: number
+}) => {
     // init stuff
     const run = getCurrentRun()
     const graph = run.nodes
     const opts = p.opts
 
     // misc calculatiosn
-    let width: number
-    let height: number
+    let width = p.width_override || opts.emptyLatent?.size.width || 1024
+    let height = p.height_override || opts.emptyLatent?.size.height || 1024
     let latent: HasSingle_LATENT
 
     // case 1. start form image
     if (opts.image) {
         const _img = run.loadImage(opts.image.image.imageID)
-        const image = await _img.loadInWorkflow()
+        let image = await (await _img.loadInWorkflow())._IMAGE
+        if (width != _img.width || height != _img.height) {
+            const max = Math.min(width / _img.width, height / _img.height)
+            image = graph.ImageScaleBy({ image: image, scale_by: max, upscale_method: 'lanczos' })._IMAGE
+        }
         latent = graph.VAEEncode({ pixels: image, vae: p.vae })
-        width = _img.width
-        height = _img.height
 
         if (opts.image.batchSize > 1) {
             latent = graph.RepeatLatentBatch({
