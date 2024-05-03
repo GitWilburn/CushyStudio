@@ -38,7 +38,12 @@ export type Ctx_sampler = {
 }
 
 // RUN -----------------------------------------------------------
-export const run_sampler = (run: Runtime, opts: OutputFor<typeof ui_sampler>, ctx: Ctx_sampler): { latent: KSampler } => {
+export const run_sampler = (
+    run: Runtime,
+    opts: OutputFor<typeof ui_sampler>,
+    ctx: Ctx_sampler,
+    blankLatent?: boolean,
+): { latent: KSampler } => {
     const graph = run.nodes
     // flow.output_text(`run_sampler with seed : ${opts.seed}`)
     const latent = graph.KSampler({
@@ -49,7 +54,7 @@ export const run_sampler = (run: Runtime, opts: OutputFor<typeof ui_sampler>, ct
         steps: opts.steps,
         sampler_name: opts.sampler_name,
         scheduler: opts.scheduler,
-        denoise: opts.denoise,
+        denoise: blankLatent ? 1 : opts.denoise,
         positive:
             typeof ctx.positive === 'string' //
                 ? graph.CLIPTextEncode({ clip: ctx.clip, text: ctx.positive })
