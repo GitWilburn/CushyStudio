@@ -38,44 +38,51 @@ export const ui_sampler = (p?: {
 
 export const ui_SDXL_aspectRatio = () => {
     const form: FormBuilder = getCurrentForm()
-    return form.fields({
-        AspectRatio: form.choice({
-            appearance: 'tab',
-            default: '_1024x1024',
-            items: {
-                _custom: form.group({}),
-                _768x512: form.group({}),
-                _512x768: form.group({}),
-                _512x512: form.group({}),
-                _704x1408: form.group({}),
-                _704x1344: form.group({}),
-                _768x1344: form.group({}),
-                _768x1280: form.group({}),
-                _832x1216: form.group({}),
-                _832x1152: form.group({}),
-                _896x1152: form.group({}),
-                _896x1088: form.group({}),
-                _960x1088: form.group({}),
-                _960x1024: form.group({}),
-                _1024x1024: form.group({}),
-                _1024x960: form.group({}),
-                _1088x960: form.group({}),
-                _1088x896: form.group({}),
-                _1152x896: form.group({}),
-                _1152x832: form.group({}),
-                _1216x832: form.group({}),
-                _1280x768: form.group({}),
-                _1344x768: form.group({}),
-                _1344x704: form.group({}),
-                _1408x704: form.group({}),
-                _1472x704: form.group({}),
-                _1536x640: form.group({}),
-                _1600x640: form.group({}),
-                _1664x576: form.group({}),
-                _1728x576: form.group({}),
+    return form.fields(
+        {
+            AspectRatio: form.choice({
+                appearance: 'tab',
+                default: '_1024x1024',
+                items: {
+                    _custom: form.group({}),
+                    _768x512: form.group({}),
+                    _512x768: form.group({}),
+                    _512x512: form.group({}),
+                    _704x1408: form.group({}),
+                    _704x1344: form.group({}),
+                    _768x1344: form.group({}),
+                    _768x1280: form.group({}),
+                    _832x1216: form.group({}),
+                    _832x1152: form.group({}),
+                    _896x1152: form.group({}),
+                    _896x1088: form.group({}),
+                    _960x1088: form.group({}),
+                    _960x1024: form.group({}),
+                    _1024x1024: form.group({}),
+                    _1024x960: form.group({}),
+                    _1088x960: form.group({}),
+                    _1088x896: form.group({}),
+                    _1152x896: form.group({}),
+                    _1152x832: form.group({}),
+                    _1216x832: form.group({}),
+                    _1280x768: form.group({}),
+                    _1344x768: form.group({}),
+                    _1344x704: form.group({}),
+                    _1408x704: form.group({}),
+                    _1472x704: form.group({}),
+                    _1536x640: form.group({}),
+                    _1600x640: form.group({}),
+                    _1664x576: form.group({}),
+                    _1728x576: form.group({}),
+                },
+            }),
+        },
+        {
+            summary: (ui) => {
+                return `${JSON.stringify(ui.AspectRatio)}`
             },
-        }),
-    })
+        },
+    )
 }
 const parseDimensions = (dimensions: string): { width: number; height: number } => {
     console.log(dimensions)
