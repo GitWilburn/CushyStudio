@@ -214,13 +214,6 @@ app({
             // const y = run_prompt({ richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
             // let negative = y.conditionning
 
-            let mask: Maybe<_MASK>
-            if (ui.mask.mask) {
-                mask = await ui.mask.mask.image.loadInWorkflowAsMask(ui.mask.mask.mode)
-                if (ui.mask.mask.invert) mask = graph.InvertMask({ mask: mask })
-                latent = graph.SetLatentNoiseMask({ mask: mask, samples: latent })
-            }
-
             //bit of a lazy hotwire to immediately override here, but wtf
             //
             // CNETS -------------------------------------------------------------------------------
@@ -244,9 +237,27 @@ app({
                 ip_adapter = faceID_out.ip_adapter
             }
 
+            let mask: Maybe<_MASK>
+            let inpaint_adapted_model: Maybe<_MODEL>
+            if (ui.mask.mask) {
+                mask = await ui.mask.mask.image.loadInWorkflowAsMask(ui.mask.mask.mode)
+                if (ui.mask.mask.invert) mask = graph.InvertMask({ mask: mask })
+                latent = graph.SetLatentNoiseMask({ mask: mask, samples: latent })
+                if (ui.mask.mask.fooocus) {
+                    inpaint_adapted_model = graph.INPAINT$_ApplyFooocusInpaint({
+                        model: run.AUTO,
+                        patch: graph.INPAINT$_LoadFooocusInpaint({
+                            head: ui.mask.mask.fooocus.head,
+                            patch: ui.mask.mask.fooocus.patch,
+                        }),
+                        latent,
+                    })._MODEL
+                }
+            }
+
             // FIRST PASS --------------------------------------------------------------------------------
             const ctx_sampler: Ctx_sampler = {
-                ckpt: run_model_modifiers(ui.model, ckptPos, false),
+                ckpt: run_model_modifiers(ui.model, inpaint_adapted_model ?? ckptPos, false),
                 clip: clipPos,
                 vae,
                 latent,

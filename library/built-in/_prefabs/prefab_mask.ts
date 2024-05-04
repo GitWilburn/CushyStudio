@@ -16,6 +16,12 @@ export const ui_mask = () => {
                     mode: form.enum.Enum_LoadImageMask_channel({}),
                     invert: form.bool({}),
                     // interrogate: form.bool({}),
+                    fooocus: form
+                        .fields({
+                            head: form.enum.Enum_INPAINT$_LoadFooocusInpaint_head({ default: 'fooocus_inpaint_head.pth' }),
+                            patch: form.enum.Enum_INPAINT$_LoadFooocusInpaint_patch({ default: 'inpaint_v26.fooocus.patch' }),
+                        })
+                        .optional(),
                 }),
             }),
         },
