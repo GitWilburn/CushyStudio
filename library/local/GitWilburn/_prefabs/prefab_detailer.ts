@@ -1,70 +1,76 @@
-import { Threshold } from 'konva/lib/filters/Threshold'
-import { threadId } from 'worker_threads'
-
-import { CustomNodeFile } from '../../../../src/manager/custom-node-list/custom-node-list-types'
 import { type OutputFor, ui_sampler } from './_prefabs'
 
 export const ui_refiners = () => {
     const form = getCurrentForm()
-    return form.group({
-        items: {
-            refinerType: form.choices({
-                appearance: 'tab',
-                requirements: [
-                    //
-                    { type: 'customNodesByTitle', title: 'ComfyUI Impact Pack' },
-                ],
-                items: {
-                    faces: form.group({
-                        items: () => ({
-                            prompt: form.string({}),
-                            detector: form.enum.Enum_UltralyticsDetectorProvider_model_name({
-                                default: 'bbox/face_yolov8m.pt',
-                                requirements: [
-                                    { type: 'customNodesByTitle', title: 'ComfyUI Impact Pack' },
-                                    { type: 'modelInManager', modelName: 'face_yolov8m (bbox)', optional: true },
-                                    { type: 'modelInManager', modelName: 'face_yolov8n (bbox)', optional: true },
-                                    { type: 'modelInManager', modelName: 'face_yolov8s (bbox)', optional: true },
-                                    { type: 'modelInManager', modelName: 'face_yolov8n_v2 (bbox)', optional: true },
-                                ],
-                            }),
-                        }),
-                    }),
-                    hands: form.group({
-                        items: () => ({
-                            prompt: form.string({}),
-                            detector: form.enum.Enum_UltralyticsDetectorProvider_model_name({
-                                default: 'bbox/hand_yolov8s.pt',
-                                requirements: [
-                                    { type: 'customNodesByTitle', title: 'ComfyUI Impact Pack' },
-                                    { type: 'modelInManager', modelName: 'hand_yolov8n (bbox)' },
-                                    { type: 'modelInManager', modelName: 'hand_yolov8s (bbox)' },
-                                ],
-                            }),
-                        }),
-                    }),
-                    eyes: form.fields(
-                        {
-                            prompt: form.string({
-                                default: 'eyes, hightly detailed, sharp details',
-                            }),
-                        },
-                        {
+    return form.fields({
+        refinerType: form.choices({
+            appearance: 'tab',
+            requirements: [
+                //
+                { type: 'customNodesByTitle', title: 'ComfyUI Impact Pack' },
+            ],
+            items: {
+                faces: form.group({
+                    items: () => ({
+                        prompt: form.string({ textarea: true }),
+                        detector: form.enum.Enum_UltralyticsDetectorProvider_model_name({
+                            default: 'bbox/face_yolov8m.pt',
                             requirements: [
                                 { type: 'customNodesByTitle', title: 'ComfyUI Impact Pack' },
-                                { type: 'customNodesByTitle', title: 'CLIPSeg' },
+                                { type: 'modelInManager', modelName: 'face_yolov8m (bbox)', optional: true },
+                                { type: 'modelInManager', modelName: 'face_yolov8n (bbox)', optional: true },
+                                { type: 'modelInManager', modelName: 'face_yolov8s (bbox)', optional: true },
+                                { type: 'modelInManager', modelName: 'face_yolov8n_v2 (bbox)', optional: true },
                             ],
-                        },
-                    ),
-                },
-            }),
-            settings: form.group({
-                startCollapsed: true,
-                items: {
-                    sampler: ui_sampler({ denoise: 0.5, steps: 5, cfg: 1.5, sampler_name: 'dpmpp_sde' }),
-                },
-            }),
-        },
+                        }),
+                    }),
+                }),
+                hands: form.group({
+                    items: () => ({
+                        prompt: form.string({ textarea: true }),
+                        detector: form.enum.Enum_UltralyticsDetectorProvider_model_name({
+                            default: 'bbox/hand_yolov8s.pt',
+                            requirements: [
+                                { type: 'customNodesByTitle', title: 'ComfyUI Impact Pack' },
+                                { type: 'modelInManager', modelName: 'hand_yolov8n (bbox)' },
+                                { type: 'modelInManager', modelName: 'hand_yolov8s (bbox)' },
+                            ],
+                        }),
+                    }),
+                }),
+                eyes: form.fields(
+                    {
+                        prompt: form.string({
+                            default: 'eyes, hightly detailed, sharp details',
+                            textarea: true,
+                        }),
+                        settings: form.fields(
+                            {
+                                previewMasks: form.bool({ default: false }),
+                            },
+                            {
+                                startCollapsed: true,
+                                summary: (ui) => {
+                                    return `preview:${ui.previewMasks}`
+                                },
+                            },
+                        ),
+                    },
+                    {
+                        requirements: [
+                            { type: 'customNodesByTitle', title: 'ComfyUI Impact Pack' },
+                            { type: 'customNodesByTitle', title: 'CLIPSeg' },
+                        ],
+                    },
+                ),
+            },
+        }),
+        settings: form.group({
+            startCollapsed: true,
+            items: {
+                sampler: ui_sampler({ denoise: 0.5, steps: 5, cfg: 1.5, sampler_name: 'dpmpp_sde' }),
+            },
+        }),
     })
 }
 
@@ -151,14 +157,14 @@ export const run_refiners_fromImage = (
     //might work, but needs
     if (eyes) {
         const eyesPrompt = eyes.prompt || 'eyes, perfect eyes, perfect anatomy, hightly detailed, sharp details'
-        const mask = graph.CLIPSeg({
-            image: graph.ImpactImageBatchToImageList({ image: image }),
-            text: 'eyes',
-            blur: 5,
-            threshold: 0.01,
-            dilation_factor: 5,
-        })
-        //const preview = graph.PreviewImage({ images: mask.outputs.Heatmap$_Mask })
+
+        const faceMesh = graph.MediaPipe$7FaceMeshPreprocessor({ image, max_faces: 10, min_confidence: 0.5, resolution: 512 })
+        const meshPreview = graph.PreviewImage({ images: faceMesh._IMAGE })
+        const segs = graph.MediaPipeFaceMeshToSEGS({ image: faceMesh._IMAGE, left_eye: true, right_eye: true, face: false })
+        const mask = graph.SegsToCombinedMask({ segs: segs._SEGS })
+        const combinedSegs = graph.MaskToSEGS({ mask: mask._MASK, combined: true })
+
+        const preview = graph.PreviewImage({ images: graph.Convert_Masks_to_Images({ masks: mask._MASK }) })
 
         const detailer = graph.DetailerForEachDebug({
             image,
@@ -173,6 +179,7 @@ export const run_refiners_fromImage = (
             model: run.AUTO,
             clip: run.AUTO,
             vae: run.AUTO,
+            seed: ui.settings.sampler.seed,
             denoise: ui.settings.sampler.denoise,
             steps: ui.settings.sampler.steps,
             sampler_name: ui.settings.sampler.sampler_name,
