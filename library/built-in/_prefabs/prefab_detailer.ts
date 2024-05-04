@@ -146,6 +146,7 @@ export const run_refiners_fromImage = (
             sam_detection_hint: 'center-1', // ❓
             sam_mask_hint_use_negative: 'False',
             wildcard: '',
+            max_size: maxRes ?? 1024,
             // force_inpaint: false,
             // sampler_name: 'ddim',
             // scheduler: 'ddim_uniform',
@@ -183,15 +184,14 @@ export const run_refiners_fromImage = (
     }
     //might work, but needs
     if (eyes) {
-        const eyesPrompt = eyes.prompt
-        const mask = graph.CLIPSeg({
-            image: image,
-            text: 'eyes',
-            blur: 5,
-            threshold: 0.01,
-            dilation_factor: 5,
-        })
-        //const preview = graph.PreviewImage({ images: mask.outputs.Heatmap$_Mask })
+        const eyesPrompt = eyes.prompt || 'eyes, perfect eyes, perfect anatomy, hightly detailed, sharp details'
+
+        const faceMesh = graph.MediaPipe$7FaceMeshPreprocessor({ image, max_faces: 10, min_confidence: 0.5, resolution: 512 })
+        // const meshPreview = graph.PreviewImage({ images: faceMesh._IMAGE })
+        const segs = graph.MediaPipeFaceMeshToSEGS({ image: faceMesh._IMAGE, left_eye: true, right_eye: true, face: false })
+        const mask = graph.SegsToCombinedMask({ segs: segs._SEGS })
+
+        // const preview = graph.PreviewImage({ images: graph.Convert_Masks_to_Images({ masks: mask._MASK }) })
 
         const detailer = graph.DetailerForEachDebug({
             image,
@@ -206,6 +206,7 @@ export const run_refiners_fromImage = (
             model: run.AUTO,
             clip: run.AUTO,
             vae: run.AUTO,
+            seed: ui.settings.sampler.seed,
             denoise: ui.settings.sampler.denoise,
             steps: ui.settings.sampler.steps,
             sampler_name: ui.settings.sampler.sampler_name,
