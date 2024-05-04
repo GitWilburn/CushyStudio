@@ -38,6 +38,29 @@ app({
         userPrefacePrompt: form.prompt({
             default: ['highly detailed, masterpiece, best quality,'].join('\n'),
         }),
+        facePrompt: form
+            .prompt({
+                default: 'face',
+                tooltip:
+                    'include the string face_prompt where you want it included in the prompt, otherwise it will append at the end',
+            })
+            .optional(),
+        eyePrompt: form
+            .prompt({
+                default: 'eyes',
+                tooltip:
+                    'include the string eye_prompt where you want it included in the prompt, otherwise it will append at the end',
+            })
+            .optional(),
+
+        stylePrompt: form
+            .prompt({
+                default: 'realistic, photorealistic, concept art',
+                tooltip:
+                    'include the string style_prompt where you want it included in the prompt, otherwise it will append at the end',
+            })
+            .optional(),
+
         ponyAdders: ui_selection(),
 
         // askLLM: form.button({ onClick: (form) => void askLLM(form) }),
@@ -58,6 +81,7 @@ app({
         aspect: ui_SDXL_aspectRatio(),
         sampler: ui_sampler().optional(),
         highResFix: ui_highresfix(),
+        refine: ui_refiners(),
         //upscale: ui_upscaleWithModel(),
         customSave: ui_customSave(),
         removeBG: ui_rembg_v1(),
@@ -127,6 +151,18 @@ app({
             const ponyAdders = run_selection(ui.ponyAdders)
             // RICH PROMPT ENGINE -------- ---------------------------------------------------------------
             // const joinedPrompt = { text: ui.userPrefacePrompt.text + ', ' + expandedPrompt }
+            let faceString: Maybe<string>
+            let eyeString: Maybe<string>
+            let styleString: Maybe<string>
+            if (ui.facePrompt) {
+                faceString = run_prompt({ prompt: ui.facePrompt, printWildcards: true }).promptIncludingBreaks
+            }
+            if (ui.eyePrompt) {
+                eyeString = run_prompt({ prompt: ui.eyePrompt, printWildcards: true }).promptIncludingBreaks
+            }
+            if (ui.stylePrompt) {
+                styleString = run_prompt({ prompt: ui.stylePrompt, printWildcards: true }).promptIncludingBreaks
+            }
             const joinedPrompt = { text: ui.userPrefacePrompt.text + ', ' + expandedPrompt }
             const posPrompt = run_prompt({
                 prompt: joinedPrompt,
@@ -136,17 +172,62 @@ app({
             })
             let positiveString: string
             clip = posPrompt.clip
-            if (
+            const addPonyTags =
                 ui.model.ckpt_name.includes('pony') ||
                 ui.model.ckpt_name.includes('sdxxxl') ||
                 ui.model.ckpt_name.includes('PDXL') ||
                 ui.model.ckpt_name.includes('PNY')
-            ) {
+            if (addPonyTags) {
                 //only include pony if pony is selected as the model
                 positiveString = ponyAdders + posPrompt.promptIncludingBreaks
             } else {
                 positiveString = posPrompt.promptIncludingBreaks
             }
+            // embed face prompt and eye prompt if enabled -------- ---------------------------------------------------------------
+            if (ui.facePrompt) {
+                const replacedFace = positiveString.replace('face_prompt', faceString ?? 'face')
+                if (replacedFace) {
+                    positiveString = replacedFace
+                } else {
+                    positiveString += faceString
+                }
+                if (addPonyTags) {
+                    faceString = ponyAdders + faceString
+                }
+                if (ui.stylePrompt && faceString) {
+                    const replacedStyle = faceString.includes('style_prompt')
+                        ? faceString.replace('style_prompt', styleString ?? 'realistic, photorealistic, concept art')
+                        : faceString + (styleString ?? 'realistic, photorealistic, concept art')
+
+                    faceString = replacedStyle
+                }
+            }
+            if (ui.eyePrompt) {
+                const replacedEye = positiveString.replace('eye_prompt', eyeString ?? 'eyes')
+                if (replacedEye) {
+                    positiveString = replacedEye
+                } else {
+                    positiveString += eyeString
+                }
+                if (addPonyTags) {
+                    eyeString = ponyAdders + eyeString
+                }
+                if (ui.stylePrompt && eyeString) {
+                    const replacedStyle = eyeString.includes('style_prompt')
+                        ? eyeString.replace('style_prompt', styleString ?? 'realistic, photorealistic, concept art')
+                        : eyeString + (styleString ?? 'realistic, photorealistic, concept art')
+
+                    eyeString = replacedStyle
+                }
+            }
+            if (ui.stylePrompt) {
+                const replacedStyle = positiveString.includes('style_prompt')
+                    ? positiveString.replace('style_prompt', styleString ?? 'realistic, photorealistic, concept art')
+                    : positiveString + (styleString ?? 'realistic, photorealistic, concept art')
+
+                positiveString = replacedStyle
+            }
+
             // console.log('[]!!#####!EPIC?' + positiveString)
             // START IMAGE -------------------------------------------------------------------------------
             const epicAspect = run_SDXL_aspectRatio(
@@ -265,8 +346,8 @@ app({
                 preview: false,
             }
             if (ui.sampler) {
-            let firstSampler = run_sampler(run, ui.sampler, ctx_sampler, blankLatent)
-            latent = firstSampler.latent
+                let firstSampler = run_sampler(run, ui.sampler, ctx_sampler, blankLatent)
+                latent = firstSampler.latent
             }
 
             // SECOND PASS (a.k.a. highres fix) ---------------------------------------------------------
@@ -292,7 +373,14 @@ app({
 
             // REFINE PASS AFTER ---------------------------------------------------------------------
             if (ui.refine) {
-                finalImage = run_refiners_fromImage(ui.refine, finalImage)
+                finalImage = run_refiners_fromImage(
+                    ui.refine,
+                    finalImage,
+                    run_model_modifiers(ui.model, ckptPos, false),
+                    1024,
+                    faceString ?? 'face,' + styleString ?? 'realistic,',
+                    eyeString ?? 'eyes,' + styleString ?? 'realistic,',
+                )
                 // latent = graph.VAEEncode({ pixels: image, vae })
             }
 
@@ -302,28 +390,6 @@ app({
                 if (sub.length > 0 && sub[0]) finalImage = graph.AlphaChanelRemove({ images: sub[0] })
             }
 
-            // // SHOW 3D --------------------------------------------------------------------------------
-            // const show3d = ui.show3d
-            // if (show3d) {
-            //     run.add_previewImage(finalImage).storeAs('base')
-            //     const depth = (() => {
-            //         if (show3d.depth.MiDaS) return graph.MiDaS$7DepthMapPreprocessor({ image: finalImage })
-            //         if (show3d.depth.Zoe) return graph.Zoe$7DepthMapPreprocessor({ image: finalImage })
-            //         if (show3d.depth.LeReS) return graph.LeReS$7DepthMapPreprocessor({ image: finalImage })
-            //         if (show3d.depth.Marigold) return graph.MarigoldDepthEstimation({ image: finalImage })
-            //         throw new Error('❌ show3d activated, but no depth option choosen')
-            //     })()
-            //     run.add_previewImage(depth).storeAs('depth')
-
-            //     const normal = (() => {
-            //         if (show3d.normal.id === 'MiDaS') return graph.MiDaS$7NormalMapPreprocessor({ image: finalImage })
-            //         if (show3d.normal.id === 'BAE') return graph.BAE$7NormalMapPreprocessor({ image: finalImage })
-            //         if (show3d.normal.id === 'None') return graph.EmptyImage({ color: 0x7f7fff, height: 512, width: 512 })
-            //         return exhaust(show3d.normal)
-            //     })()
-            //     run.add_previewImage(normal).storeAs('normal')
-            // } else {
-            //     // DECODE --------------------------------------------------------------------------------
             graph.SaveImage({ images: finalImage })
             // }
 
@@ -344,12 +410,6 @@ app({
             })
             const saveFormat = run_customSave(ui.customSave)
             await run.PROMPT({ saveFormat })
-
-            // if (ui.testStuff?.gaussianSplat) run.output_GaussianSplat({ url: '' })
-            // if (ui.testStuff?.summary) output_demo_summary(run)
-            // if (show3d) run.output_3dImage({ image: 'base', depth: 'depth', normal: 'normal' })
-            //
-            // if (ui.testStuff?.makeAVideo) await run.Videos.output_video_ffmpegGeneratedImagesTogether(undefined, 2)
         }
     },
 })
