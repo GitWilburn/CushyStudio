@@ -56,8 +56,7 @@ app({
         mask: ui_mask(),
         latent: ui_latent_v3(),
         aspect: ui_SDXL_aspectRatio(),
-        sampler: ui_sampler(),
-        refine: ui_refiners(),
+        sampler: ui_sampler().optional(),
         highResFix: ui_highresfix(),
         //upscale: ui_upscaleWithModel(),
         customSave: ui_customSave(),
@@ -265,8 +264,10 @@ app({
                 negative: negative,
                 preview: false,
             }
+            if (ui.sampler) {
             let firstSampler = run_sampler(run, ui.sampler, ctx_sampler, blankLatent)
             latent = firstSampler.latent
+            }
 
             // SECOND PASS (a.k.a. highres fix) ---------------------------------------------------------
             const HRF = ui.highResFix
@@ -334,10 +335,10 @@ app({
                 params: {
                     positivePrompt: JSON.stringify(ui.userPrefacePrompt.serial.val),
                     negativePrompt: JSON.stringify(ui.negative.serial.val),
-                    denoise: ui.sampler.denoise,
-                    ksampler: ui.sampler.sampler_name,
-                    scheduler: ui.sampler.scheduler,
-                    seed: ui.sampler.seed,
+                    denoise: ui.sampler?.denoise,
+                    ksampler: ui.sampler?.sampler_name,
+                    scheduler: ui.sampler?.scheduler,
+                    seed: ui.sampler?.seed,
                     uiState: JSON.stringify(ui),
                 },
             })
