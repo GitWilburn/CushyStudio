@@ -255,16 +255,26 @@ app({
             scale_factor: ui.videoCombineOptions.advancedSettings.RIFEscale_factor,
             frames: vAEDecode1,
         })
-        const vHS$_VideoCombine1 = graph.VHS$_VideoCombine({
-            frame_rate: ui.videoCombineOptions.frame_rate,
-            loop_count: ui.videoCombineOptions.advancedSettings.loop_count,
-            filename_prefix: ui.videoCombineOptions.filename_prefix,
-            format: ui.videoCombineOptions.format,
-            pingpong: ui.videoCombineOptions.advancedSettings.pingpong,
-            save_output: ui.videoCombineOptions.advancedSettings.save_output,
-            images: rife_vfi,
-        })
+        // const vHS$_VideoCombine1 = graph.VHS$_VideoCombine({
+        //     frame_rate: ui.videoCombineOptions.frame_rate,
+        //     loop_count: ui.videoCombineOptions.advancedSettings.loop_count,
+        //     filename_prefix: ui.videoCombineOptions.filename_prefix,
+        //     format: ui.videoCombineOptions.format,
+        //     pingpong: ui.videoCombineOptions.advancedSettings.pingpong,
+        //     save_output: ui.videoCombineOptions.advancedSettings.save_output,
+        //     images: rife_vfi,
+        // })
         //const finalPreviewImages = graph.PreviewImage({ images: vAEDecode1 })
+        const save = graph.SaveImage({
+            filename_prefix: ui.videoCombineOptions.filename_prefix + '\\Images',
+            images: rife_vfi._IMAGE,
+        })
+        if (ui.videoCombineOptions.include_gif) {
+            const gif = graph.Write_to_GIF({
+                image: rife_vfi,
+            })
+        }
         await run.PROMPT()
+        run.Videos.output_video_ffmpegGeneratedImagesTogether(undefined, ui.videoCombineOptions.frame_rate)
     },
 })

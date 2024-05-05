@@ -4,6 +4,7 @@ export const ui_vhsExport = () => {
         filename_prefix: form.string({ default: 'EpicAnimateDiff' }),
         format: form.enum.Enum_VHS$_VideoCombine_format({ default: 'image/webp' }),
         frame_rate: form.float({ default: 24, min: 1, softMax: 60, max: 2048, step: 1 }),
+        include_gif: form.bool({ default: false }),
         advancedSettings: form.fields(
             {
                 loop_count: form.int({ default: 0, min: 0, max: 100, step: 1 }),
