@@ -10,6 +10,12 @@ import { run_model, run_model_modifiers, ui_model } from '../../built-in/_prefab
 import { run_prompt } from '../../built-in/_prefabs/prefab_prompt'
 import { run_rembg_v1, ui_rembg_v1 } from '../../built-in/_prefabs/prefab_rembg'
 import { type Ctx_sampler, run_sampler } from '../../built-in/_prefabs/prefab_sampler'
+import {
+    type Ctx_sampler_advanced,
+    encodeText,
+    run_sampler_advanced,
+    ui_sampler_advanced,
+} from '../../built-in/_prefabs/prefab_sampler_advanced'
 import { run_customSave, ui_customSave } from '../../built-in/_prefabs/saveSmall'
 import { epicLLM_getSystemPrompt, epicLLMSystemPromptType } from './_prefabs/_llm_systemPrompts'
 // import { epicLLM_getSystemPrompt, epicLLMSystemPromptType } from './_prefabs/_llm_systemPrompts'
@@ -37,6 +43,9 @@ app({
         promptList: ui_promptList(),
         promptFromLlm: ui_epic_llm(),
         userPrefacePrompt: form.prompt({
+            default: ['highly detailed, masterpiece, best quality,'].join('\n'),
+        }),
+        dualCFGPositive2: form.prompt({
             default: ['highly detailed, masterpiece, best quality,'].join('\n'),
         }),
         facePrompt: form
@@ -80,7 +89,8 @@ app({
         mask: ui_mask(),
         latent: ui_latent_v3(),
         aspect: ui_SDXL_aspectRatio(),
-        sampler: ui_sampler().optional(true),
+        sampler: ui_sampler_advanced().optional(true),
+        // sampler: ui_sampler().optional(true),
         highResFix: ui_highresfix(),
         refine: ui_refiners(),
         //upscale: ui_upscaleWithModel(),
@@ -229,6 +239,7 @@ app({
 
                 positiveString = replacedStyle
             }
+            const positive2string = run_prompt({ prompt: ui.dualCFGPositive2, printWildcards: true }).promptIncludingBreaks
 
             // console.log('[]!!#####!EPIC?' + positiveString)
             // START IMAGE -------------------------------------------------------------------------------
@@ -237,7 +248,6 @@ app({
                 ui.latent.emptyLatent?.size.width,
                 ui.latent.emptyLatent?.size.height,
             )
-
             let { latent, width, height, blankLatent } = await run_latent_vEpic({
                 opts: ui.latent,
                 vae,
@@ -245,43 +255,30 @@ app({
                 height_override: epicAspect.height,
             })
             const isSDXL = Math.max(width, height) >= 1024
-            const posPromptNode = ui.textEncoderType.SDXL
-                ? graph.CLIPTextEncodeSDXL({
-                      clip,
-                      text_g: positiveString,
-                      text_l: positiveString,
-                      width,
-                      height,
-                      target_height: height,
-                      target_width: width,
-                  })
-                : graph.CLIPTextEncode({
-                      clip,
-                      text: positiveString,
-                  })
+            const posConditioning = encodeText(
+                run,
+                clip,
+                posPrompt.promptIncludingBreaks,
+                isSDXL ? 'SDXL' : 'CLIP',
+                width,
+                height,
+            )
 
             run.output_text({ title: 'positive', message: positiveString })
             const clipPos = posPrompt.clip
             let ckptPos = posPrompt.ckpt
-            let positive: _CONDITIONING = posPromptNode._CONDITIONING
-            // let negative = x.conditionningNeg
-            //
+            let positive: _CONDITIONING = posConditioning
+
             const negPrompt = run_prompt({ prompt: ui.negative, clip, ckpt })
-            const negPromptNode = ui.textEncoderType.SDXL
-                ? graph.CLIPTextEncodeSDXL({
-                      clip,
-                      text_g: negPrompt.promptIncludingBreaks,
-                      text_l: negPrompt.promptIncludingBreaks,
-                      width,
-                      height,
-                      target_height: height,
-                      target_width: width,
-                  })
-                : graph.CLIPTextEncode({
-                      clip,
-                      text: positiveString,
-                  })
-            let negative: _CONDITIONING = negPromptNode
+            const negConditioning = encodeText(
+                run,
+                clip,
+                negPrompt.promptIncludingBreaks,
+                isSDXL ? 'SDXL' : 'CLIP',
+                width,
+                height,
+            )
+            let negative: _CONDITIONING = negConditioning
 
             const promptList = await run_promptList({
                 opts: ui.promptList,
@@ -295,6 +292,8 @@ app({
             positive = promptList.conditioning
             ckptPos = promptList.ckpt //this may be nothing if not masked, but may contain an updated model
 
+            const positive2 = encodeText(run, clip, positive2string, isSDXL ? 'SDXL' : 'CLIP', width, height)
+            run.output_text({ message: positive2string, title: 'Why broken' })
             // const y = run_prompt({ richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
             // let negative = y.conditionning
 
@@ -341,18 +340,21 @@ app({
             }
 
             // FIRST PASS --------------------------------------------------------------------------------
-            const ctx_sampler: Ctx_sampler = {
+            const ctx_sampler: Ctx_sampler_advanced = {
                 ckpt: run_model_modifiers(ui.model, inpaint_adapted_model ?? ckptPos, false),
                 clip: clipPos,
                 vae,
                 latent,
                 positive: positive,
                 negative: negative,
+                positive2: positive2,
                 preview: false,
+                width: width,
+                height: height,
             }
             if (ui.sampler) {
-                let firstSampler = run_sampler(run, ui.sampler, ctx_sampler, blankLatent)
-                latent = firstSampler.latent
+                let firstSampler = run_sampler_advanced(run, ui.sampler, ctx_sampler, blankLatent)
+                latent = firstSampler.output
             }
 
             // SECOND PASS (a.k.a. highres fix) ---------------------------------------------------------
@@ -410,8 +412,8 @@ app({
                     positivePrompt: JSON.stringify(ui.userPrefacePrompt.serial.val),
                     negativePrompt: JSON.stringify(ui.negative.serial.val),
                     denoise: ui.sampler?.denoise,
-                    ksampler: ui.sampler?.sampler_name,
-                    scheduler: ui.sampler?.scheduler,
+                    // ksampler: ui.sampler?.sampler_name,
+                    // scheduler: ui.sampler?.scheduler,
                     seed: ui.sampler?.seed,
                     uiState: JSON.stringify(ui),
                 },
