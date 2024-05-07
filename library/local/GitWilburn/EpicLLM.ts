@@ -80,7 +80,7 @@ app({
         mask: ui_mask(),
         latent: ui_latent_v3(),
         aspect: ui_SDXL_aspectRatio(),
-        sampler: ui_sampler().optional(),
+        sampler: ui_sampler().optional(true),
         highResFix: ui_highresfix(),
         refine: ui_refiners(),
         //upscale: ui_upscaleWithModel(),
@@ -244,7 +244,7 @@ app({
                 width_override: epicAspect.width,
                 height_override: epicAspect.height,
             })
-
+            const isSDXL = Math.max(width, height) >= 1024
             const posPromptNode = ui.textEncoderType.SDXL
                 ? graph.CLIPTextEncodeSDXL({
                       clip,
@@ -382,7 +382,7 @@ app({
                     ui.refine,
                     finalImage,
                     run_model_modifiers(ui.model, ckptPos, false),
-                    1024,
+                    isSDXL ? 1024 : 512,
                     faceString ?? 'face,' + styleString ?? 'realistic,',
                     eyeString ?? 'eyes,' + styleString ?? 'realistic,',
                 )
