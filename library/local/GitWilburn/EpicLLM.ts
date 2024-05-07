@@ -283,15 +283,17 @@ app({
                   })
             let negative: _CONDITIONING = negPromptNode
 
-            const promptList = run_promptList({
+            const promptList = await run_promptList({
                 opts: ui.promptList,
                 conditioning: positive,
                 encoderTypeSDXL: ui.textEncoderType.SDXL ? true : false,
                 width,
                 height,
                 promptPreface: ponyAdders,
+                ckpt: ckptPos,
             })
             positive = promptList.conditioning
+            ckptPos = promptList.ckpt //this may be nothing if not masked, but may contain an updated model
 
             // const y = run_prompt({ richPrompt: negPrompt, clip, ckpt, outputWildcardsPicked: true })
             // let negative = y.conditionning
