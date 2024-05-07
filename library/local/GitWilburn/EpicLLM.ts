@@ -322,6 +322,7 @@ app({
             if (ui.mask.mask) {
                 mask = await ui.mask.mask.image.loadInWorkflowAsMask(ui.mask.mask.mode)
                 if (ui.mask.mask.invert) mask = graph.InvertMask({ mask: mask })
+                if (ui.mask.mask.blur > 0) mask = graph.MaskBlur$6({ amount: ui.mask.mask.blur, mask })
                 latent = graph.SetLatentNoiseMask({ mask: mask, samples: latent })
                 if (ui.mask.mask.fooocus) {
                     inpaint_adapted_model = graph.INPAINT$_ApplyFooocusInpaint({

@@ -16,6 +16,7 @@ export const ui_mask = () => {
                     mode: form.enum.Enum_LoadImageMask_channel({}),
                     invert: form.bool({}),
                     // interrogate: form.bool({}),
+                    blur: form.float({ default: 6, min: 0, max: 2048, softMax: 24, step: 1 }),
                     fooocus: form
                         .fields({
                             head: form.enum.Enum_INPAINT$_LoadFooocusInpaint_head({ default: 'fooocus_inpaint_head.pth' }),
