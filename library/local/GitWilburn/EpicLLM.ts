@@ -22,6 +22,7 @@ import {
     ui_sampler,
     ui_SDXL_aspectRatio,
 } from './_prefabs/_prefabs'
+import { run_autoBrightness, ui_autoBrightness } from './_prefabs/post_processing'
 import { run_selection, ui_selection } from './_prefabs/prefab_PonyDiffusion'
 import { run_promptList, ui_promptList } from './_prefabs/prompt_list'
 import { view_basicDraftParameters } from './_prefabs/view_basicParameters'
@@ -89,6 +90,7 @@ app({
         controlnets: ui_cnet(),
         ipAdapter: ui_IPAdapterV2().optional(),
         faceID: ui_IPAdapterFaceIDV2().optional(),
+        autoBrightness: ui_autoBrightness().optional(),
         loop: form.group({
             items: () => ({
                 batchCount: form.int({ default: 1 }),
@@ -389,6 +391,9 @@ app({
             if (ui.removeBG) {
                 const sub = run_rembg_v1(ui.removeBG, finalImage)
                 if (sub.length > 0 && sub[0]) finalImage = graph.AlphaChanelRemove({ images: sub[0] })
+            }
+            if (ui.autoBrightness) {
+                finalImage = run_autoBrightness({ image: finalImage, ui: ui.autoBrightness })
             }
 
             graph.SaveImage({ images: finalImage })

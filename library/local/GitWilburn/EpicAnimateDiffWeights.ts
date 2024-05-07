@@ -2,6 +2,7 @@ import { run_latent_v3, ui_latent_v3 } from '../../built-in/_prefabs/prefab_late
 import { run_model, ui_model } from '../../built-in/_prefabs/prefab_model'
 import { run_prompt } from '../../built-in/_prefabs/prefab_prompt'
 import { type Ctx_sampler, run_sampler, ui_sampler } from '../../built-in/_prefabs/prefab_sampler'
+import { run_autoBrightness, ui_autoBrightness } from './_prefabs/post_processing'
 import { ui_vhsExport } from './_prefabs/vhs_export'
 
 app({
@@ -16,25 +17,33 @@ app({
         images: form.list({ element: form.image({}) }),
         positivePrompt: form.promptV2({}),
         negativePrompt: form.promptV2({}),
-        AnimateDiffSettings: form.fields({
-            model_name: form.enum.Enum_ADE$_AnimateDiffLoaderGen1_model_name({ default: 'v3_sd15_mm.ckpt' }),
-            lcm_lora: form.enum.Enum_LoraLoader_lora_name({ default: 'animateDiff\\lcm-lora-sdv1-5.safetensors' }),
-            context_overlap: form.int({ default: 4, min: 0, softMax: 16, max: 128 }),
-            AdvancedSettings: form.fields(
-                {
-                    lcm_lora_strength: form.float({ default: 1, min: -1, max: 1, step: 0.01 }),
-                    context_length: form.int({ default: 16, min: 1, max: 128 }),
-                    beta_schedule: form.enum.Enum_CheckpointLoaderSimpleWithNoiseSelect_beta_schedule({
-                        default: 'lcm avg(sqrt_linear,linear)',
-                    }),
-                    fuse_method: form.enum.Enum_ADE$_StandardStaticContextOptions_fuse_method({ default: 'pyramid' }),
-                    use_on_equal_length: form.boolean({ default: false }),
-                    start_percent: form.float({ default: 0, min: 0, max: 1, step: 0.001 }),
-                    guarantee_steps: form.int({ default: 1, min: 0, max: 9007199254740991 }),
-                },
-                { startCollapsed: true },
-            ),
-        }),
+        AnimateDiffSettings: form.fields(
+            {
+                model_name: form.enum.Enum_ADE$_AnimateDiffLoaderGen1_model_name({ default: 'v3_sd15_mm.ckpt' }),
+                lcm_lora: form.enum.Enum_LoraLoader_lora_name({ default: 'animateDiff\\lcm-lora-sdv1-5.safetensors' }),
+                context_overlap: form.int({ default: 4, min: 0, softMax: 16, max: 128 }),
+                AdvancedSettings: form.fields(
+                    {
+                        lcm_lora_strength: form.float({ default: 1, min: -1, max: 1, step: 0.01 }),
+                        context_length: form.int({ default: 16, min: 1, max: 128 }),
+                        beta_schedule: form.enum.Enum_CheckpointLoaderSimpleWithNoiseSelect_beta_schedule({
+                            default: 'lcm avg(sqrt_linear,linear)',
+                        }),
+                        fuse_method: form.enum.Enum_ADE$_StandardStaticContextOptions_fuse_method({ default: 'pyramid' }),
+                        use_on_equal_length: form.boolean({ default: false }),
+                        start_percent: form.float({ default: 0, min: 0, max: 1, step: 0.001 }),
+                        guarantee_steps: form.int({ default: 1, min: 0, max: 9007199254740991 }),
+                    },
+                    { startCollapsed: true },
+                ),
+            },
+            {
+                requirements: [
+                    { type: 'customNodesByTitle', title: 'AnimateDiff Evolved' },
+                    { type: 'customNodesByTitle', title: 'ComfyUI_IPAdapter_plus' },
+                ],
+            },
+        ),
         IPAdapterSettings: form.fields(
             {
                 preset: form.enum.Enum_IPAdapterUnifiedLoader_preset({ default: 'PLUS (high strength)' }),
@@ -95,6 +104,12 @@ app({
             },
             { startCollapsed: true },
         ),
+        postProcessing: form.fields(
+            {
+                autoBrightness: ui_autoBrightness().optional(),
+            },
+            { startCollapsed: true },
+        ),
         videoCombineOptions: ui_vhsExport(),
     }),
 
@@ -113,12 +128,12 @@ app({
             ckpt,
             printWildcards: true,
         })
-        const positiveConditioning = posPrompt.conditioning
-        const negativeConditioning = negPrompt.conditioning
+        let positiveConditioning = posPrompt.conditioning
+        let negativeConditioning = negPrompt.conditioning
         const lcmLora = graph.LoraLoaderModelOnly({
             lora_name: ui.AnimateDiffSettings.lcm_lora,
             strength_model: ui.AnimateDiffSettings.AdvancedSettings.lcm_lora_strength,
-            model: ckpt,
+            model: posPrompt.ckpt,
         })
         const modelSamplingDiscrete = graph.ModelSamplingDiscrete({ sampling: 'lcm', zsnr: false, model: lcmLora._MODEL })
         const aDE$_LoadAnimateDiffModel = graph.ADE$_LoadAnimateDiffModel({ model_name: ui.AnimateDiffSettings.model_name })
@@ -143,15 +158,22 @@ app({
         let width = 512
         let height = 512
         for (const img of ui.images) {
-            const _img = graph.LoadImage({ image: await run.loadImageAnswerAsEnum(img) })
+            const _img = graph.ImageScale({
+                image: graph.LoadImage({ image: await run.loadImageAnswerAsEnum(img) })._IMAGE,
+                width: 512,
+                height: 512,
+                crop: 'disabled',
+                upscale_method: 'lanczos',
+            })
             if (images) {
                 images = graph.ImageBatch({ image1: images, image2: _img._IMAGE })
             } else {
                 images = _img._IMAGE
-                width = img.width
-                height = img.height
+                // width = img.width
+                // height = img.height
             }
         }
+        if (!images) throw new Error('❌ input images required')
 
         const iPAdapterWeights = graph.IPAdapterWeights({
             weights: ui.IPAdapterSettings.AdvancedSettings.weights,
@@ -199,8 +221,21 @@ app({
             image: iPAdapterWeights.outputs.image_2,
             image_negative: iPAdapterNoise,
         })
+        ckpt = iPAdapterBatchInvert._MODEL
+        //realized this won't work because the poses of the original images would have to be keyframes
+        // const poses = graph.OpenposePreprocessor({ image: images })
+
+        // const poseController = graph.ACN$_AdvancedControlNetApply({
+        //     image: images,
+        //     positive: positiveConditioning,
+        //     negative: negativeConditioning,
+        //     control_net: graph.DiffControlNetLoader({ control_net_name: 't2i-adapter_xl_openpose.safetensors', model: ckpt }),
+        // })
+        // positiveConditioning = poseController.outputs.positive
+        // negativeConditioning = poseController.outputs.negative
+
         const ctx_sampler: Ctx_sampler = {
-            ckpt: iPAdapterBatchInvert._MODEL,
+            ckpt: ckpt,
             clip: run.AUTO,
             vae,
             latent: latent,
@@ -213,6 +248,12 @@ app({
 
         const decodedImages = graph.VAEDecode({ samples: latent, vae })
         //const imagePreview = graph.PreviewImage({ images: decodedImages })
+        images = decodedImages
+        if (ui.postProcessing.autoBrightness && images) {
+            images = run_autoBrightness({ image: images, ui: ui.postProcessing.autoBrightness })
+            latent = graph.VAEEncode({ pixels: images, vae })
+        }
+
         const AdvancedControlNetApply = graph.ACN$_AdvancedControlNetApply({
             strength: ui.SecondPass.strength,
             start_percent: ui.SecondPass.start_percent,
@@ -234,6 +275,7 @@ app({
             image: iPAdapterWeights.outputs.image_1,
             image_negative: iPAdapterNoise,
         })
+
         const second_ctx_sampler: Ctx_sampler = {
             ckpt: secondPassIPAdapter._MODEL,
             clip: run.AUTO,
@@ -265,13 +307,18 @@ app({
         //     images: rife_vfi,
         // })
         //const finalPreviewImages = graph.PreviewImage({ images: vAEDecode1 })
+        images = rife_vfi._IMAGE
+        if (ui.postProcessing.autoBrightness) {
+            images = run_autoBrightness({ image: images, ui: ui.postProcessing.autoBrightness })
+        }
+
         const save = graph.SaveImage({
             filename_prefix: ui.videoCombineOptions.filename_prefix + '\\Images',
-            images: rife_vfi._IMAGE,
+            images: images,
         })
         if (ui.videoCombineOptions.include_gif) {
             const gif = graph.Write_to_GIF({
-                image: rife_vfi,
+                image: images,
             })
         }
         await run.PROMPT()
