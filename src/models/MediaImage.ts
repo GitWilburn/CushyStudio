@@ -297,6 +297,10 @@ export class MediaImageL {
         return this
     }
 
+    set tags(str: string) {
+        this.update({ tags: str })
+    }
+
     /** get tags as string list (de-duplicated) */
     get tags(): string[] {
         if (this.data.tags == null) return []
