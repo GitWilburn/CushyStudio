@@ -3,6 +3,7 @@ import type { FieldConfig } from '../../model/FieldConfig'
 import type { FieldSerial } from '../../model/FieldSerial'
 import type { IBlueprint } from '../../model/IBlueprint'
 import type { Model } from '../../model/Model'
+import type { TabPositionConfig } from '../choices/TabPositionConfig'
 
 import { runInAction } from 'mobx'
 import { nanoid } from 'nanoid'
@@ -22,7 +23,7 @@ export type SelectOneSkin = 'select' | 'tab' | 'roll'
 // CONFIG
 export type Widget_selectOne_config<T extends BaseSelectEntry> = FieldConfig<
     {
-        default?: T
+        default?: NoInfer<T>
         /**
          * list of all choices
          * 👉 you can use a lambda if you want the option to to dynamic
@@ -42,7 +43,18 @@ export type Widget_selectOne_config<T extends BaseSelectEntry> = FieldConfig<
         disableLocalFiltering?: boolean
         getLabelUI?: (t: T) => React.ReactNode
         appearance?: SelectOneSkin
+
+        /**
+         * @since 2024-06-24
+         * allow to wrap the list of values if they take more than 1 SLH (standard line height)
+         */
         wrap?: boolean
+
+        /**
+         * @since 2024-06-24
+         * @deprecated use global csuite config instead
+         */
+        tabPosition?: TabPositionConfig
     },
     Widget_selectOne_types<T>
 >
@@ -93,7 +105,7 @@ export class Widget_selectOne<T extends BaseSelectEntry> //
     get baseErrors(): Maybe<string> {
         if (this.serial.val == null) return 'no value selected'
         const selected = this.choices.find((c) => c.id === this.serial.val.id)
-        if (selected == null) return 'selected value not in choices'
+        if (selected == null && !this.config.disableLocalFiltering) return 'selected value not in choices'
         return
     }
 

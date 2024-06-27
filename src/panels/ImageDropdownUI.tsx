@@ -21,38 +21,32 @@ export const ImageDropdownMenuUI = observer(function ImageDropdownMenuUI_(p: { i
     return (
         <>
             <div className='divider my-1'>Send to</div>
-            <MenuItem
-                icon={<span className='material-symbols-outlined'>content_copy</span>}
-                onClick={(e) => img.copyToClipboard()}
-            >
+            <MenuItem icon={'mdiContentCopy'} onClick={(e) => img.copyToClipboard()}>
                 Clipboard
             </MenuItem>
-            <MenuItem
-                icon={<span className='material-symbols-outlined'>content_copy</span>}
-                onClick={img.copyToClipboardAsBase64}
-            >
+            <MenuItem icon={'mdiContentCopy'} onClick={img.copyToClipboardAsBase64}>
                 Copy Base64
             </MenuItem>
             <MenuItem
-                icon={<span className='material-symbols-outlined'>settings_overscan</span>}
+                icon={'mdiOverscan'}
                 disabled={!img?.absPath}
                 onClick={() => st.layout.FOCUS_OR_CREATE('Image', { imageID: img.id })}
-                shortcut='mod+click'
+                localShortcut='mod+click'
             >
                 Dedicated Panel
             </MenuItem>
             <MenuItem
-                icon={<span className='material-symbols-outlined'>center_focus_weak</span>}
+                icon={'mdiFocusAuto'}
                 disabled={!img?.absPath}
-                shortcut='shift+click'
+                localShortcut='shift+click'
                 onClick={() => st.layout.FOCUS_OR_CREATE('Canvas', { imgID: img.id })}
             >
                 Unified Canvas
             </MenuItem>
             <MenuItem
-                icon={<span className='material-symbols-outlined'>brush</span>}
+                icon={'mdiBrush'}
                 disabled={!img?.absPath}
-                shortcut='alt+click'
+                localShortcut='alt+click'
                 onClick={() => st.layout.FOCUS_OR_CREATE('Paint', { imgID: img.id })}
             >
                 MiniPaint
@@ -60,7 +54,7 @@ export const ImageDropdownMenuUI = observer(function ImageDropdownMenuUI_(p: { i
 
             <div className='divider my-1'>FileSystem</div>
             <MenuItem
-                icon={<IkonOf name='mdiStarShooting' color='gold' />}
+                icon={'mdiStarShooting'}
                 disabled={!st.getConfigValue('favoriteLocalFolderPath') || st.getConfigValue('favoriteLocalFolderPath') === ''}
                 onClick={() => {
                     if (!img || !st.getConfigValue('favoriteLocalFolderPath')) return
@@ -70,7 +64,17 @@ export const ImageDropdownMenuUI = observer(function ImageDropdownMenuUI_(p: { i
                 {ImagePathUIString(st.getConfigValue('favoriteLocalFolderPath'))}
             </MenuItem>
             <MenuItem
-                icon={<span className='material-symbols-outlined'>folder</span>}
+                icon={'mdiStarShooting'}
+                disabled={!st.getConfigValue('favoriteLocalFolderPath') || st.getConfigValue('favoriteLocalFolderPath') === ''}
+                onClick={() => {
+                    if (!img || !st.getConfigValue('favoriteLocalFolderPath')) return
+                    return img.saveLocally(st.getConfigValue('favoriteLocalFolderPath') ?? '')
+                }}
+            >
+                {ImagePathUIString(st.getConfigValue('favoriteLocalFolderPath'))}
+            </MenuItem>
+            <MenuItem
+                icon={'mdiFolder'}
                 disabled={!img?.absPath}
                 onClick={() => {
                     if (!img?.absPath) return
@@ -81,7 +85,7 @@ export const ImageDropdownMenuUI = observer(function ImageDropdownMenuUI_(p: { i
             </MenuItem>
             {/* 3. OPEN FILE ITSELF */}
             <MenuItem
-                icon={<span className='material-symbols-outlined'>folder</span>}
+                icon='mdiFile'
                 size='xs'
                 disabled={!img?.absPath}
                 onClick={() => {
@@ -94,17 +98,10 @@ export const ImageDropdownMenuUI = observer(function ImageDropdownMenuUI_(p: { i
             </MenuItem>
             <div className='divider my-1'>Draft</div>
             <MenuItem className='_MenuItem' onClick={() => img.useAsDraftIllustration()}>
-                <div className='flex items-center gap-2'>
-                    <span className='material-symbols-outlined'>image</span>
-                    Use as Draft Illustration
-                </div>
+                <div className='flex items-center gap-2'>'image' Use as Draft Illustration</div>
             </MenuItem>
             <div className='divider my-0'></div>
-            <MenuItem
-                icon={<span className='material-symbols-outlined text-red-500'>delete</span>}
-                disabled={!img?.absPath}
-                onClick={() => img.delete()}
-            >
+            <MenuItem icon={'mdiDelete'} disabled={!img?.absPath} onClick={() => img.delete()}>
                 Delete
             </MenuItem>
             <ImageActionMenu img={img} />
@@ -134,7 +131,7 @@ export const ImageActionMenu = observer(function ImageActionMenu_(p: { img: Medi
                                 key={d.id}
                                 className='_MenuItem'
                                 onClick={() => {
-                                    d.start({ imageToStartFrom: img })
+                                    d.start({ context: { image: img } })
                                 }}
                             >
                                 <div className='flex flex-1 items-center gap-2'>

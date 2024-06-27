@@ -16,7 +16,7 @@ import type { FormBuilder } from '../../../src/controls/FormBuilder'
 // this should be a default
 export type OutputFor<UIFn extends (...args: any[]) => { $Value: any }> = ReturnType<UIFn>['$Value']
 
-type UI_HighResFix = X.XGroup<{
+export type UI_HighResFix = X.XGroup<{
     upscaleMethod: X.XSelectOne<{ readonly id: 'regular' } | { readonly id: 'Neural 1.5' } | { readonly id: 'Neural XL' }>
     scaleFactor: X.XNumber
     steps: X.XNumber
@@ -25,10 +25,10 @@ type UI_HighResFix = X.XGroup<{
     useMainSampler: X.XBool
 }>
 
-export function ui_highresfix(p: { activeByDefault?: true } = {}): UI_HighResFix {
+export function ui_highresfix(): UI_HighResFix {
     const form = getCurrentForm()
     return form.group({
-        label: 'Upscale Pass (High Res Fix)',
+        label: 'High Res Fix',
         icon: 'mdiArrowExpandAll',
         box: { base: { hue: 220, chroma: 0.1 } },
         items: {

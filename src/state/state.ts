@@ -2,10 +2,13 @@
 import '../models/asyncRuntimeStorage'
 
 import type { ActionTagMethodList } from '../cards/App'
+import type { Activity } from '../csuite/activity/Activity'
+import type { CSuiteConfig } from '../csuite/ctx/CSuiteConfig'
 import type { Tint } from '../csuite/kolor/Tint'
 import type { ModelSerial } from '../csuite/model/ModelSerial'
 import type { TreeNode } from '../csuite/tree/TreeNode'
 import type { MediaImageL } from '../models/MediaImage'
+import type { ConfigMode } from '../panels/PanelConfig/PanelConfig'
 import type { CSCriticalError } from '../widgets/CSCriticalError'
 import type { Wildcards } from '../widgets/prompter/nodes/wildcards/wildcards'
 
@@ -28,6 +31,7 @@ import { type ConfigFile, PreferedFormLayout } from '../config/ConfigFile'
 import { mkConfigFile } from '../config/mkConfigFile'
 import { CushyFormManager } from '../controls/FormBuilder'
 import { JsonFile } from '../core/JsonFile'
+import { Channel } from '../csuite' // WIP remove me 2024-06-25 🔴
 import { activityManager } from '../csuite/activity/ActivityManager'
 import { commandManager, type CommandManager } from '../csuite/commands/CommandManager'
 import { CSuite_ThemeCushy } from '../csuite/ctx/CSuite_ThemeCushy'
@@ -72,6 +76,7 @@ import { DanbooruTags } from '../widgets/prompter/nodes/booru/BooruLoader'
 import { UserTags } from '../widgets/prompter/nodes/usertags/UserLoader'
 import { mandatoryTSConfigIncludes, mkTypescriptConfig, type TsConfigCustom } from '../widgets/TsConfigCustom'
 import { AuthState } from './AuthState'
+import { interfaceConf } from './conf/interfaceConf'
 import { themeConf } from './conf/themeConf'
 import { readJSON, writeJSON } from './jsonUtils'
 import { Marketplace } from './Marketplace'
@@ -79,6 +84,8 @@ import { mkSupa } from './supa'
 import { Uploader } from './Uploader'
 
 export class STATE {
+    Channel = Channel // WIP remove me 2024-06-25 🔴
+
     // LEAVE THIS AT THE TOP OF THIS CLASS
     __INJECTION__ = (() => {
         //  globally register the state as this
@@ -241,6 +248,7 @@ export class STATE {
     sid: Maybe<string> = null
     comfyStatus: Maybe<ComfyStatus> = null
     configFile: JsonFile<ConfigFile>
+    configMode: ConfigMode = 'legacy'
     updater: GitManagedFolder
     hovered: Maybe<StepOutput> = null
     electronUtils: ElectronUtils
@@ -311,20 +319,8 @@ export class STATE {
 
     droppedFiles: File[] = []
 
-    // _allPublishedApps: Maybe<> = null
-
-    // showCardPicker: boolean = false
-    closeFullLibrary = () => (this.layout.fullPageComp = null)
-    openFullLibrary = () => (this.layout.fullPageComp = { props: {}, panel: 'FullScreenLibrary' })
     toggleFullLibrary = () => {
-        if (
-            this.layout.fullPageComp == null || //
-            this.layout.fullPageComp.panel !== 'FullScreenLibrary'
-        ) {
-            this.layout.fullPageComp = { props: {}, panel: 'FullScreenLibrary' }
-        } else {
-            this.layout.fullPageComp = null
-        }
+        this.layout.FOCUS_OR_CREATE('FullScreenLibrary', {})
     }
 
     // 🔴 this is not the right way to go cause it will cause the action to stay
@@ -441,6 +437,12 @@ export class STATE {
             onSerialChange: (form) => writeJSON('settings/graph-visualization.json', form.serial),
         },
     )
+
+    /** practical shortcut to start activity */
+    startActivity(activity: Activity) {
+        activityManager.start(activity)
+    }
+
     get activityManager() {
         return activityManager
     }
@@ -601,6 +603,7 @@ export class STATE {
                 return
             },
         })
+
         this.tree2 = new Tree(
             [
                 // treeElement({ key: 'library', ctor: TreeFolder, props: asRelativePath('library') }),
@@ -623,6 +626,7 @@ export class STATE {
         makeAutoObservable(this, {
             comfyUIIframeRef: false,
             wildcards: false,
+            Channel: false, // WIP remove me 2024-06-25 🔴
         })
         void this.startupFileIndexing()
         setTimeout(() => quickBench.printAllStats(), 1000)
@@ -938,7 +942,11 @@ export class STATE {
     }
 
     theme = themeConf
-    csuite = new CSuite_ThemeCushy(this)
+    preferences = {
+        interface: interfaceConf,
+    }
+
+    csuite: CSuiteConfig = new CSuite_ThemeCushy(this)
 
     get themeText(): Tint {
         return run_tint(this.theme.value.text)

@@ -3,6 +3,7 @@ import type { FieldSerial, FieldSerial_CommonProperties } from '../../model/Fiel
 import type { IBlueprint, SchemaDict } from '../../model/IBlueprint'
 import type { Model } from '../../model/Model'
 import type { Problem_Ext } from '../../model/Validation'
+import type { TabPositionConfig } from './TabPositionConfig'
 
 import { nanoid } from 'nanoid'
 
@@ -12,7 +13,6 @@ import { toastError } from '../../utils/toasts'
 import { registerWidgetClass } from '../WidgetUI.DI'
 import { WidgetChoices_BodyUI, WidgetChoices_HeaderUI, WidgetChoices_TabHeaderUI } from './WidgetChoicesUI'
 
-export type TabPositionConfig = 'start' | 'center' | 'end'
 type DefaultBranches<T> = { [key in keyof T]?: boolean }
 
 // CONFIG
@@ -97,6 +97,11 @@ export class Widget_choices<T extends SchemaDict = SchemaDict> extends BaseField
             // if child.config.label === '' => makeLabelFromFieldName(key)
             label: spec.config.label || makeLabelFromFieldName(key),
         }))
+    }
+
+    /** hack so optional fields do not increase nesting twice */
+    get indentChildren() {
+        return 0
     }
 
     /** array of all active branch keys */

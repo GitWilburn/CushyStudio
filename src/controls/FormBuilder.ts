@@ -3,6 +3,7 @@ import type { IBlueprint, SchemaDict } from '../csuite/model/IBlueprint'
 import type { Domain } from '../csuite/model/IDomain'
 import type { Model } from '../csuite/model/Model'
 import type { OpenRouter_Models } from '../csuite/openrouter/OpenRouter_models'
+import type { NO_PROPS } from '../csuite/types/NO_PROPS'
 
 import { makeAutoObservable, reaction } from 'mobx'
 
@@ -32,7 +33,7 @@ import { ModelManager } from '../csuite/model/ModelManager'
 import { openRouterInfos } from '../csuite/openrouter/OpenRouter_infos'
 import { _FIX_INDENTATION } from '../csuite/utils/_FIX_INDENTATION'
 import { Widget_prompt, type Widget_prompt_config } from '../prompt/WidgetPrompt'
-import { mkFormAutoBuilder } from './AutoBuilder'
+import { type AutoBuilder, mkFormAutoBuilder } from './AutoBuilder'
 import { Blueprint } from './Blueprint'
 import { EnumBuilder, EnumBuilderOpt, EnumListBuilder } from './EnumBuilder'
 
@@ -43,7 +44,9 @@ declare global {
         type FormBuilder = import('./FormBuilder').FormBuilder
 
         // attempt to make type safety better --------------------------------------------------------
+        type Shared<T extends IBlueprint> = Widget_shared<T>
         type XGroup<T extends SchemaDict> = Blueprint<Widget_group<T>>
+        type XEmpty = Blueprint<Widget_group<NO_PROPS>>
         type XOptional<T extends IBlueprint> = Blueprint<Widget_optional<T>>
         type XBool = Blueprint<Widget_bool>
         type XShared<T extends IBlueprint> = Widget_shared<T>
@@ -196,22 +199,22 @@ export class FormBuilder implements Domain {
     listExt = <T extends IBlueprint>(config: Widget_listExt_config<T>): X.XListExt<T> => {
         return new Blueprint<Widget_listExt<T>>('listExt', config)
     }
-    timeline = <T extends IBlueprint>(config: Widget_listExt_config<T>) => {
+    timeline = <T extends IBlueprint>(config: Widget_listExt_config<T>): X.XListExt<T> => {
         return new Blueprint<Widget_listExt<T>>('listExt', { mode: 'timeline', ...config })
     }
-    regional = <T extends IBlueprint>(config: Widget_listExt_config<T>) => {
+    regional = <T extends IBlueprint>(config: Widget_listExt_config<T>): X.XListExt<T> => {
         return new Blueprint<Widget_listExt<T>>('listExt', { mode: 'regional', ...config })
     }
     selectOneV2 = <T extends string>(
         p: T[],
         config: Omit<Widget_selectOne_config<BaseSelectEntry<T>>, 'choices'> = {},
-    ): X.XSelectOne<BaseSelectEntry<T>> => {
+    ): X.XSelectOne_<T> => {
         return new Blueprint<Widget_selectOne<BaseSelectEntry<T>>>('selectOne', { choices: p.map((id) => ({ id, label: id })), appearance:'tab', ...config }) // prettier-ignore
     }
-    selectOne = <const T extends BaseSelectEntry>(config: Widget_selectOne_config<T>) => {
+    selectOne = <const T extends BaseSelectEntry>(config: Widget_selectOne_config<T>): X.XSelectOne<T> => {
         return new Blueprint<Widget_selectOne<T>>('selectOne', config)
     }
-    selectMany = <const T extends BaseSelectEntry>(config: Widget_selectMany_config<T>) => {
+    selectMany = <const T extends BaseSelectEntry>(config: Widget_selectMany_config<T>): X.XSelectMany<T> => {
         return new Blueprint<Widget_selectMany<T>>('selectMany', config)
     }
     /** see also: `fields` for a more practical api */
@@ -248,8 +251,8 @@ export class FormBuilder implements Domain {
     ): X.XChoices<T> => {
         return new Blueprint<Widget_choices<T>>('choices', { items, multi: true, appearance: 'tab', ...config })
     }
-    ok = <T extends SchemaDict>(config: Widget_group_config<T> = {}) => {
-        return new Blueprint<Widget_group<T>>('group', config)
+    empty = (config: Widget_group_config<NO_PROPS> = {}): X.XEmpty => {
+        return new Blueprint<Widget_group<NO_PROPS>>('group', config)
     }
     /** simple choice alternative api */
     tabs = <T extends { [key: string]: IBlueprint }>(
@@ -310,22 +313,22 @@ export class FormBuilder implements Domain {
     // --------------------
 
     // enum = /*<const T extends KnownEnumNames>*/ (config: Widget_enum_config<any, any>) => new Widget_enum(this.form, config)
-    get auto() {
+    get auto(): AutoBuilder {
         const _ = mkFormAutoBuilder(this) /*<const T extends KnownEnumNames>*/
         Object.defineProperty(this, 'auto', { value: _ })
         return _
     }
-    get autoField() {
+    get autoField(): AutoBuilder {
         const _ = mkFormAutoBuilder(this)
         Object.defineProperty(this, 'autoField', { value: _ })
         return _
     }
-    get enum() {
+    get enum(): EnumBuilder {
         const _ = new EnumBuilder(this.form) /*<const T extends KnownEnumNames>*/
         Object.defineProperty(this, 'enum', { value: _ })
         return _
     }
-    get enums() {
+    get enums(): EnumListBuilder {
         const _ = new EnumListBuilder(this.form) /*<const T extends KnownEnumNames>*/
         Object.defineProperty(this, 'enums', { value: _ })
         return _

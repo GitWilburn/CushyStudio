@@ -4,7 +4,7 @@ import type { Widget_group } from './WidgetGroup'
 import { observer } from 'mobx-react-lite'
 
 import { Button } from '../../button/Button'
-import { WidgetsContainerUI } from '../../form/WidgetsContainerUI'
+import { ListOfFieldsContainerUI } from '../../form/WidgetsContainerUI'
 import { WidgetSingleLineSummaryUI } from '../../form/WidgetSingleLineSummaryUI'
 import { WidgetWithLabelUI } from '../../form/WidgetWithLabelUI'
 import { bang } from '../../utils/bang'
@@ -17,8 +17,8 @@ export const WidgetGroup_LineUI = observer(function WidgetGroup_LineUI_(p: {
     if (!p.widget.serial.collapsed) {
         return (
             <div tw='ml-auto flex gap-0.5'>
-                <Button square onClick={() => p.widget.expandAllChildren()} subtle icon='mdiUnfoldMoreHorizontal'></Button>
-                <Button square onClick={() => p.widget.collapseAllChildren()} subtle icon='mdiUnfoldLessHorizontal'></Button>
+                <Button square subtle borderless icon='mdiUnfoldMoreHorizontal' onClick={() => p.widget.expandAllChildren()} />
+                <Button square subtle borderless icon='mdiUnfoldLessHorizontal' onClick={() => p.widget.collapseAllChildren()} />
             </div>
         )
     }
@@ -35,7 +35,10 @@ export const WidgetGroup_BlockUI = observer(function WidgetGroup_BlockUI_<T exte
     const isHorizontal = widget.config.layout === 'H'
 
     return (
-        <WidgetsContainerUI layout={p.widget.config.layout} tw={[widget.config.className, p.className]}>
+        <ListOfFieldsContainerUI //
+            layout={p.widget.config.layout}
+            tw={[widget.config.className, p.className]}
+        >
             {groupFields.map(([rootKey, sub], ix) => (
                 <WidgetWithLabelUI //
                     key={rootKey}
@@ -44,6 +47,6 @@ export const WidgetGroup_BlockUI = observer(function WidgetGroup_BlockUI_<T exte
                     widget={bang(sub)}
                 />
             ))}
-        </WidgetsContainerUI>
+        </ListOfFieldsContainerUI>
     )
 })
