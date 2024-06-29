@@ -1,7 +1,7 @@
+import type { Entity } from '../../model/Entity'
 import type { FieldConfig } from '../../model/FieldConfig'
 import type { FieldSerial } from '../../model/FieldSerial'
-import type { IBlueprint } from '../../model/IBlueprint'
-import type { Model } from '../../model/Model'
+import type { ISchema } from '../../model/ISchema'
 
 import { observable, reaction } from 'mobx'
 import { nanoid } from 'nanoid'
@@ -11,11 +11,10 @@ import { runWithGlobalForm } from '../../model/runWithGlobalForm'
 import { bang } from '../../utils/bang'
 import { clampOpt } from '../../utils/clamp'
 import { registerWidgetClass } from '../WidgetUI.DI'
-
 import { WidgetList_BodyUI, WidgetList_LineUI } from './WidgetListUI'
 
 /** */
-interface AutoBehaviour<out T extends IBlueprint> {
+interface AutoBehaviour<out T extends ISchema> {
     /** list of keys that must be present */
     keys(self: T['$Field']): string[] // ['foo', 'bar', 'baz']
 
@@ -27,49 +26,50 @@ interface AutoBehaviour<out T extends IBlueprint> {
 }
 
 // CONFIG
-export interface Widget_list_config<out T extends IBlueprint> extends FieldConfig<
-    {
-        element: ((ix: number) => T) | T
-        /**
-         * when specified, the list will work in some AUTOMATIC mode
-         *  - disable the "add" button
-         *  - disable the "remove" button
-         *  - disable the "clear" button
-         *  - automatically add or remove missing items when reaction
-         *  - subscribe via mobx to anything you want
-         */
-        auto?: AutoBehaviour<T>
+export interface Widget_list_config<out T extends ISchema>
+    extends FieldConfig<
+        {
+            element: ((ix: number) => T) | T
+            /**
+             * when specified, the list will work in some AUTOMATIC mode
+             *  - disable the "add" button
+             *  - disable the "remove" button
+             *  - disable the "clear" button
+             *  - automatically add or remove missing items when reaction
+             *  - subscribe via mobx to anything you want
+             */
+            auto?: AutoBehaviour<T>
 
-        /** @default: true */
-        sortable?: boolean
+            /** @default: true */
+            sortable?: boolean
 
-        /**
-         * mininum length;
-         * if min > 0, list will be populated on creation
-         * if length < min, list will be populated with empty items
-         * if length <= min, list will not be clearable
-         * */
-        min?: number
+            /**
+             * mininum length;
+             * if min > 0, list will be populated on creation
+             * if length < min, list will be populated with empty items
+             * if length <= min, list will not be clearable
+             * */
+            min?: number
 
-        /** max length */
-        max?: number
+            /** max length */
+            max?: number
 
-        defaultLength?: number
-    },
-    Widget_list_types<T>
-> {}
+            defaultLength?: number
+        },
+        Widget_list_types<T>
+    > {}
 
 // SERIAL
-export type Widget_list_serial<T extends IBlueprint> = FieldSerial<{
+export type Widget_list_serial<T extends ISchema> = FieldSerial<{
     type: 'list'
     items_: T['$Serial'][]
 }>
 
 // VALUE
-export type Widget_list_value<T extends IBlueprint> = T['$Value'][]
+export type Widget_list_value<T extends ISchema> = T['$Value'][]
 
 // TYPES
-export type Widget_list_types<T extends IBlueprint> = {
+export type Widget_list_types<T extends ISchema> = {
     $Type: 'list'
     $Config: Widget_list_config<T>
     $Serial: Widget_list_serial<T>
@@ -78,7 +78,7 @@ export type Widget_list_types<T extends IBlueprint> = {
 }
 
 // STATE
-export class Widget_list<T extends IBlueprint> //
+export class Widget_list<T extends ISchema> //
     extends BaseField<Widget_list_types<T>>
 {
     DefaultHeaderUI = WidgetList_LineUI
@@ -92,7 +92,7 @@ export class Widget_list<T extends IBlueprint> //
     items: T['$Field'][]
     serial: Widget_list_serial<T>
 
-    get hasChanges() {
+    get hasChanges(): boolean {
         // in auto mode, length is managed, so we must not take it into account
         if (!this.config.auto) {
             const defaultLength = clampOpt(this.config.defaultLength, this.config.min, this.config.max)
@@ -101,7 +101,7 @@ export class Widget_list<T extends IBlueprint> //
         // check if any remaining item has changes
         return this.items.some((i) => i.hasChanges)
     }
-    reset = () => {
+    reset(): void {
         // fix size
         if (!this.config.auto) {
             const defaultLength = clampOpt(this.config.defaultLength, this.config.min, this.config.max)
@@ -126,11 +126,11 @@ export class Widget_list<T extends IBlueprint> //
         return null
     }
 
-    get subWidgets() {
+    get subWidgets(): BaseField[] {
         return this.items
     }
 
-    get subWidgetsWithKeys() {
+    get subWidgetsWithKeys(): { key: string; widget: BaseField }[] {
         return this.items.map((widget, ix) => ({ key: ix.toString(), widget }))
     }
 
@@ -138,7 +138,7 @@ export class Widget_list<T extends IBlueprint> //
         const _schema = this.config.element
         const schema: T =
             typeof _schema === 'function' //
-                ? runWithGlobalForm(this.form.builder, () => _schema(ix))
+                ? runWithGlobalForm(this.entity.domain, () => _schema(ix))
                 : _schema
         return schema
     }
@@ -167,7 +167,7 @@ export class Widget_list<T extends IBlueprint> //
                     this.removeItem(item)
                     needBump = true
                 }
-                if (needBump) this.bumpValue()
+                if (needBump) this.applyValueUpdateEffects()
             },
             { fireImmediately: true },
         )
@@ -175,12 +175,12 @@ export class Widget_list<T extends IBlueprint> //
 
     constructor(
         //
-        public readonly form: Model,
-        public readonly parent: BaseField | null,
-        public readonly spec: IBlueprint<Widget_list<T>>,
+        entity: Entity,
+        parent: BaseField | null,
+        spec: ISchema<Widget_list<T>>,
         serial?: Widget_list_serial<T>,
     ) {
-        super()
+        super(entity, parent, spec)
         this.id = serial?.id ?? nanoid()
 
         // serial
@@ -207,7 +207,7 @@ export class Widget_list<T extends IBlueprint> //
                     console.log(`[❌] SKIPPING form item because it has an incompatible entry from a previous app definition`)
                     continue
                 }
-                const subWidget = form.builder._HYDRATE(this, unmounted, subSerial)
+                const subWidget = entity.domain._HYDRATE(this.entity, this, unmounted, subSerial)
                 this.items.push(subWidget)
             }
         }
@@ -223,21 +223,28 @@ export class Widget_list<T extends IBlueprint> //
         this.startAutoBehaviour()
     }
 
-    setValue(val: Widget_list_value<T>) {
-        for (let i = 0; i < val.length; i++) {
-            if (i < this.items.length) {
-                this.items[i]!.setValue(val[i])
-            } else {
-                this.addItem({ skipBump: true })
-                this.items[i]!.setValue(val[i])
-            }
-        }
-        this.serial.items_.splice(val.length)
-        this.items.splice(val.length)
-        this.bumpValue()
-    }
     get value(): Widget_list_value<T> {
         return this.items.map((i) => i.value)
+    }
+
+    set value(val: Widget_list_value<T>) {
+        for (let i = 0; i < val.length; i++) {
+            // 1. replace existing items
+            if (i < this.items.length) {
+                this.items[i]!.value = val[i]
+            }
+            // 2. add missing items
+            else {
+                this.addItem({ skipBump: true })
+                this.items[i]!.value = val[i]
+            }
+        }
+        // 3. remove extra items
+        this.serial.items_.splice(val.length)
+        this.items.splice(val.length)
+
+        // 4. apply update effects
+        this.applyValueUpdateEffects()
     }
 
     // HELPERS =======================================================
@@ -274,11 +281,11 @@ export class Widget_list<T extends IBlueprint> //
 
         // create new item
         const schema = this.schemaAt(p.at ?? this.serial.items_.length) // TODO: evaluate schema in the form loop
-        const element = this.form.builder._HYDRATE(this, schema, null)
+        const element = this.entity.domain._HYDRATE(this.entity, this, schema, null)
 
         // set initial value
         if (p.value) {
-            element.setValue(p.value)
+            element.value = p.value
         }
 
         // insert item
@@ -289,7 +296,7 @@ export class Widget_list<T extends IBlueprint> //
             this.items.splice(p.at, 0, element)
             this.serial.items_.splice(p.at, 0, element.serial)
         }
-        if (!p?.skipBump) this.bumpValue()
+        if (!p?.skipBump) this.applyValueUpdateEffects()
     }
 
     // REMOVING ITEMS ------------------------------------------------
@@ -302,7 +309,7 @@ export class Widget_list<T extends IBlueprint> //
         // remove all items
         this.serial.items_ = this.serial.items_.slice(0, minLen)
         this.items = this.items.slice(0, minLen)
-        this.bumpValue()
+        this.applyValueUpdateEffects()
     }
 
     removeItem(item: T['$Field']) {
@@ -312,7 +319,7 @@ export class Widget_list<T extends IBlueprint> //
         // remove item
         this.serial.items_.splice(i, 1)
         this.items.splice(i, 1)
-        this.bumpValue()
+        this.applyValueUpdateEffects()
     }
 
     // MOVING ITEMS ---------------------------------------------------
@@ -332,7 +339,7 @@ export class Widget_list<T extends IBlueprint> //
         // instances
         const instances = this.items
         instances.splice(newIndex, 0, bang(instances.splice(oldIndex, 1)[0]))
-        this.bumpValue()
+        this.applyValueUpdateEffects()
     }
 }
 

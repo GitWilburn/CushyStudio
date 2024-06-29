@@ -7,7 +7,6 @@ import { DraftIllustrationUI } from '../cards/fancycard/DraftIllustration'
 import { Button } from '../csuite/button/Button'
 import { Dropdown } from '../csuite/dropdown/Dropdown'
 import { MenuItem } from '../csuite/dropdown/MenuItem'
-import { IkonOf } from '../csuite/icons/iconHelpers'
 import { useSt } from '../state/stateContext'
 
 export const ImageDropdownUI = observer(function ImageDropdownUI_(p: { img: MediaImageL }) {
@@ -54,17 +53,8 @@ export const ImageDropdownMenuUI = observer(function ImageDropdownMenuUI_(p: { i
 
             <div className='divider my-1'>FileSystem</div>
             <MenuItem
-                icon={'mdiStarShooting'}
-                disabled={!st.getConfigValue('favoriteLocalFolderPath') || st.getConfigValue('favoriteLocalFolderPath') === ''}
-                onClick={() => {
-                    if (!img || !st.getConfigValue('favoriteLocalFolderPath')) return
-                    return img.saveLocally(st.getConfigValue('favoriteLocalFolderPath') ?? '')
-                }}
-            >
-                {ImagePathUIString(st.getConfigValue('favoriteLocalFolderPath'))}
-            </MenuItem>
-            <MenuItem
-                icon={'mdiStarShooting'}
+                icon='mdiStarShooting'
+                iconClassName='[color:gold]'
                 disabled={!st.getConfigValue('favoriteLocalFolderPath') || st.getConfigValue('favoriteLocalFolderPath') === ''}
                 onClick={() => {
                     if (!img || !st.getConfigValue('favoriteLocalFolderPath')) return

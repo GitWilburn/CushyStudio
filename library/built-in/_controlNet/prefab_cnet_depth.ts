@@ -1,4 +1,3 @@
-import type { FormBuilder } from '../../../src/CUSHY'
 import type { OutputFor } from '../_prefabs/_prefabs'
 
 import { cnet_preprocessor_ui_common, cnet_ui_common } from './cnet_ui_common'
@@ -16,7 +15,7 @@ export type UI_subform_Depth = X.XGroup<{
     }>
 }>
 export function ui_subform_Depth(): UI_subform_Depth {
-    const ui: FormBuilder = getCurrentForm()
+    const ui: X.Builder = getCurrentForm()
     return ui
         .group({
             label: 'Depth',
@@ -50,13 +49,13 @@ export type UI_subform_Depth_Preprocessor = X.XChoice<{
     Zoe: UI_subform_Depth_Zoe
 }>
 export function ui_subform_Depth_Preprocessor(): UI_subform_Depth_Preprocessor {
-    const form: FormBuilder = getCurrentForm()
-    return form.choice({
+    const ui: X.Builder = getCurrentForm()
+    return ui.choice({
         label: 'Depth Preprocessor',
         default: 'Midas',
         appearance: 'tab',
         items: {
-            None: form.empty(),
+            None: ui.empty(),
             Midas: ui_subform_Depth_Midas(),
             Leres: ui_subform_Depth_LeReS(),
             Zoe: ui_subform_Depth_Zoe(),
@@ -74,7 +73,7 @@ export type UI_subform_Depth_Midas = X.XGroup<{
 }>
 
 export function ui_subform_Depth_Midas(): UI_subform_Depth_Midas {
-    const form: FormBuilder = getCurrentForm()
+    const form: X.Builder = getCurrentForm()
     return form.group({
         label: 'Midas',
         // startCollapsed: true,
@@ -97,7 +96,7 @@ export type UI_subform_Depth_LeReS = X.XGroup<{
     saveProcessedImage: X.XBool
 }>
 export function ui_subform_Depth_LeReS(): UI_subform_Depth_LeReS {
-    const form: FormBuilder = getCurrentForm()
+    const form: X.Builder = getCurrentForm()
     return form.group({
         label: 'LeReS',
         // startCollapsed: true,
@@ -115,7 +114,7 @@ export type UI_subform_Depth_Zoe = X.XGroup<{
     saveProcessedImage: X.XBool
 }>
 export function ui_subform_Depth_Zoe(): UI_subform_Depth_Zoe {
-    const form: FormBuilder = getCurrentForm()
+    const form: X.Builder = getCurrentForm()
     return form.group({
         label: 'Zoe',
         // startCollapsed: true,
