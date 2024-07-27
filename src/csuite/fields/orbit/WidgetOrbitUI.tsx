@@ -1,4 +1,4 @@
-import type { Widget_orbit } from './WidgetOrbit'
+import type { Field_orbit } from './FieldOrbit'
 import type { OrbitControls as OrbitControlsT } from 'three/examples/jsm/controls/OrbitControls'
 
 import { OrbitControls } from '@react-three/drei'
@@ -8,18 +8,18 @@ import { useRef } from 'react'
 
 import { Cube } from './Cube3D'
 
-export const WidgetOrbitUI = observer((p: { widget: Widget_orbit }) => {
+export const WidgetOrbitUI = observer((p: { field: Field_orbit }) => {
     const ref = useRef<any>(null)
     return (
         <div>
             <div tw='flex items-center'>
-                <div tw='btn' onClick={() => p.widget.reset()}>
+                <div tw='btn' onClick={() => p.field.reset()}>
                     reset
                 </div>
                 {/* <pre>{JSON.stringify(p.widget.euler, null, 2)}</pre> */}
-                <pre tw='text-xs italic'>{JSON.stringify(p.widget.englishSummary, null, 2)}</pre>
+                <pre tw='text-xs italic'>{JSON.stringify(p.field.englishSummary, null, 2)}</pre>
             </div>
-            <Canvas camera={{ fov: 15, position: [p.widget.euler.x, p.widget.euler.y, p.widget.euler.z] }}>
+            <Canvas camera={{ fov: 15, position: [p.field.euler.x, p.field.euler.y, p.field.euler.z] }}>
                 <ambientLight intensity={1.5} />
                 <pointLight position={[10, 10, 10]} />
                 <Cube />
@@ -34,7 +34,7 @@ export const WidgetOrbitUI = observer((p: { widget: Widget_orbit }) => {
                     // enableZoom={false}
                     onChange={(e) => {
                         const curr = ref.current as OrbitControlsT
-                        p.widget.setForZero123({
+                        p.field.setForZero123({
                             azimuth_rad: curr.getAzimuthalAngle(),
                             elevation_rad: curr.getPolarAngle(),
                         })
@@ -42,11 +42,11 @@ export const WidgetOrbitUI = observer((p: { widget: Widget_orbit }) => {
                         //     p.widget.serial.val.azimuth = clampMod(-90 + curr.getAzimuthalAngle() * (180 / Math.PI), -180, 180)
                         //     p.widget.serial.val.elevation = clampMod(90 - curr.getPolarAngle() * (180 / Math.PI), -180, 180) // (Math.PI / 4 - curr.getPolarAngle()) * (180 / Math.PI)
 
-                        //     // console.log(`[👙] `, JSON.stringify(p.widget.state.val))
+                        //     // console.log(`[🧐] `, JSON.stringify(p.widget.state.val))
                         // })
                         // if (e == null) return
                         // const azimuthDeg = e.azimuthalAngle * (180 / Math.PI)
-                        // const elevationDeg = console.log(`[👙] `, { rotation, azimuthDeg, elevationDeg })
+                        // const elevationDeg = console.log(`[🧐] `, { rotation, azimuthDeg, elevationDeg })
                     }}
                 />
             </Canvas>

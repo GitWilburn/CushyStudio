@@ -1,3 +1,6 @@
+import type { NO_PROPS } from '../../csuite/types/NO_PROPS'
+import type { FC } from 'react'
+
 import { observer } from 'mobx-react-lite'
 
 import { KEYS } from '../../app/shortcuts/shorcutKeys'
@@ -13,10 +16,8 @@ import { InputStringUI } from '../../csuite/input-string/InputStringUI'
 import { FormHelpTextUI } from '../../csuite/inputs/shims'
 import { BasicShelfUI } from '../../csuite/shelf/ShelfUI'
 import { parseFloatNoRoundingErr } from '../../csuite/utils/parseFloatNoRoundingErr'
-// import { Panel_ComfyUIHosts } from './Panel_ComfyUIHosts'
 import { PanelHeaderUI } from '../../csuite/wrappers/PanelHeader'
-import { Panel } from '../../router/Panel'
-// import { PanelHeaderUI } from '../csuite/wrappers/PanelHeader'
+import { Panel, type PanelHeader } from '../../router/Panel'
 import { useSt } from '../../state/stateContext'
 import { openInVSCode } from '../../utils/electron/openInVsCode'
 import { PanelComfyHostsUI } from '../PanelComfyHosts/Panel_ComfyUIHosts'
@@ -25,12 +26,14 @@ export type ConfigMode = 'hosts' | 'input' | 'interface' | 'legacy' | 'system' |
 
 export const PanelConfig = new Panel({
     name: 'Config',
-    widget: () => PanelConfigUI,
-    header: (p) => ({ title: 'Config', icon: undefined }),
-    def: () => ({}),
+    widget: (): FC<NO_PROPS> => PanelConfigUI,
+    header: (p): PanelHeader => ({ title: 'Config', icon: undefined }),
+    def: (): PanelConfigProps => ({}),
 })
 
-export const PanelConfigUI = observer(function Panel_Config_() {
+export type PanelConfigProps = NO_PROPS
+
+export const PanelConfigUI = observer(function Panel_Config_(p: PanelConfigProps) {
     let page
     switch (cushy.configMode) {
         case 'hosts':
@@ -40,20 +43,20 @@ export const PanelConfigUI = observer(function Panel_Config_() {
             page = <>Not implemented</>
             break
         case 'interface':
-            page = <FormUI tw='flex-1' form={cushy.preferences.interface} />
+            page = <FormUI tw='flex-1' field={cushy.preferences.interface} />
             break
         case 'legacy':
             page = <LegacyOptions />
             break
         case 'system':
-            page = <FormUI tw='flex-1' form={cushy.preferences.system} />
+            page = <FormUI tw='flex-1' field={cushy.preferences.system} />
             break
         case 'theme':
-            page = <FormUI tw='flex-1' form={cushy.theme} />
+            page = <FormUI tw='flex-1' field={cushy.theme} />
             break
     }
 
-    const ConfigModeButton = (p: { mode: ConfigMode }) => {
+    const ConfigModeButton = (p: { mode: ConfigMode }): JSX.Element => {
         return (
             <InputBoolToggleButtonUI //
                 tw='capitalize h-10'
@@ -144,44 +147,17 @@ const LegacyOptions = observer(function LegacyOptions_() {
                         tw='csuite-basic-input w-full'
                         name='tagFile'
                         value={config.get('tagFile') ?? 'completions/danbooru.csv'}
-                        onChange={(ev) => {
-                            config.update({ tagFile: ev.target.value })
-                            st.updateTsConfig()
-                        }}
+                        onChange={(ev) => config.update({ tagFile: ev.target.value })}
                     />
                 </FieldUI>
                 <FieldUI label='Your github username'>
                     <input //
                         tw='csuite-basic-input w-full'
                         value={config.value.githubUsername}
-                        onChange={(ev) => {
-                            config.update({ githubUsername: ev.target.value })
-                            st.updateTsConfig()
-                        }}
+                        onChange={(ev) => config.update({ githubUsername: ev.target.value })}
                         name='githubUsername'
                     />
                 </FieldUI>
-                {/* <FieldUI label='Your Cushy CloudGPU api Key'>
-        <input //
-            tw='csuite-basic-input w-full'
-            value={config.value.cushyCloudGPUApiKey}
-            onChange={(ev) => {
-                config.update({ cushyCloudGPUApiKey: ev.target.value })
-                st.updateTsConfig()
-            }}
-            name='githubUsername'
-        />
-    </FieldUI> */}
-                {/* <FieldUI label='Gallery Image Size (px)'>
-        <InputNumberUI //
-            placeholder='48'
-            min={16}
-            max={256}
-            value={config.value.galleryImageSize ?? 48}
-            mode='int'
-            onValueChange={(val) => config.update({ galleryImageSize: val })}
-        />
-    </FieldUI> */}
                 <FieldUI label='Number slider speed multiplier'>
                     <InputNumberUI //
                         placeholder='Number slider speed multiplier'

@@ -11,6 +11,7 @@ import type { StepL } from './Step'
 import type { MouseEvent } from 'react'
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { imageMeta } from 'image-meta'
 import Konva from 'konva'
 import { lookup } from 'mime-types'
 import { format, join, parse } from 'path'
@@ -25,22 +26,39 @@ import { toastError, toastImage, toastInfo } from '../csuite/utils/toasts'
 import { LiveRefOpt } from '../db/LiveRefOpt'
 import { SafetyResult } from '../safety/Safety'
 import { createHTMLImage_fromURL } from '../state/createHTMLImage_fromURL'
+import { hashArrayBuffer } from '../state/hashArrayBuffer'
 import { asAbsolutePath, asRelativePath } from '../utils/fs/pathUtils'
 import { transparentImgURL } from '../widgets/galleries/transparentImg'
-import { createMediaImage_fromDataURI, type ImageCreationOpts } from './createMediaImage_fromWebFile'
+import {
+    _createMediaImage_fromLocalyAvailableImage,
+    createMediaImage_fromDataURI,
+    type ImageCreationOpts,
+} from './createMediaImage_fromWebFile'
 import { getCurrentRun_IMPL } from './getGlobalRuntimeCtx'
+import { FPath } from './PathObj'
 
 export interface MediaImageL extends LiveInstance<TABLES['media_image']> {}
 export class MediaImageL {
     /** return the image filename */
-    get filename() {
+    get filename(): string {
         return basename(this.data.path)
     }
 
-    get step(): Maybe<StepL> { return this.prompt?.step } // prettier-ignore
-    get draft(): Maybe<DraftL> { return this.step?.draft } // prettier-ignore
-    get app(): Maybe<CushyAppL> {return this.draft?.app} // prettier-ignore
-    get script(): Maybe<CushyScriptL> {return this.app?.script } // prettier-ignore
+    get step(): Maybe<StepL> {
+        return this.prompt?.step
+    }
+
+    get draft(): Maybe<DraftL> {
+        return this.step?.draft
+    }
+
+    get app(): Maybe<CushyAppL> {
+        return this.draft?.app
+    }
+
+    get script(): Maybe<CushyScriptL> {
+        return this.app?.script
+    }
 
     /** flip image */
     // 👀 👉 https://github.com/lovell/sharp/issues/28#issuecomment-679193628
@@ -97,7 +115,7 @@ export class MediaImageL {
         }
     }
     /** Uses electron clipboard API to copy the image to clipboard, will only copy as PNG. */
-    copyToClipboard = async () => {
+    copyToClipboard = async (): Promise<void> => {
         try {
             await this.st.electronUtils.copyImageToClipboard({
                 format: this.extension.split('.').pop(),
@@ -109,18 +127,18 @@ export class MediaImageL {
         }
     }
 
-    copyToClipboardAsBase64 = () =>
+    copyToClipboardAsBase64 = (): Promise<void> =>
         navigator.clipboard.writeText(this.getBase64Url()).then(() => {
             toastInfo('Image copied to clipboard!')
         })
 
-    useAsDraftIllustration = (draft_?: DraftL) => {
+    useAsDraftIllustration = (draft_?: DraftL): void => {
         const draft = draft_ ?? this.draft
-        if (draft == null) return toastError(`no related draft found`)
+        if (draft == null) return void toastError(`no related draft found`)
         draft.update({ illustration: this.url })
     }
 
-    saveLocally = (localAbsolutePath: string) => {
+    saveLocally = (localAbsolutePath: string): void => {
         mkdirSync(localAbsolutePath, { recursive: true })
         let absFilePath = join(localAbsolutePath, this.filename)
 
@@ -139,7 +157,7 @@ export class MediaImageL {
         writeFileSync(absFilePath, this.getArrayBuffer())
     }
 
-    get relPath() {
+    get relPath(): RelativePath {
         return asRelativePath(this.data.path)
     }
 
@@ -147,17 +165,20 @@ export class MediaImageL {
         return `/` + this.data.path
     }
 
-    get baseName() {
+    get baseName(): string {
         return basename(this.data.path)
     }
 
-    get baseNameWithoutExtension() {
+    get baseNameWithoutExtension(): string {
         const fname = this.baseName
         return fname.slice(0, fname.lastIndexOf('.'))
     }
 
-    /** return file extension including dot */
-    get extension() {
+    /**
+     * return file extension including dot
+     * e.g. `.png`, or `.webp`
+     * */
+    get extension(): string {
         const fname = this.baseName
         return fname.slice(((fname.lastIndexOf('.') - 1) >>> 0) + 1)
     }
@@ -165,14 +186,17 @@ export class MediaImageL {
     onMouseEnter = (ev: MouseEvent): void => {
         cushy.hovered = this
     }
+
     onMouseLeave = (ev: MouseEvent): void => {
         if (cushy.hovered === this) cushy.hovered = null
     }
 
-    onMiddleClick = () => {
+    onMiddleClick = (): void => {
         return void cushy.layout.FOCUS_OR_CREATE('Image', { imageID: this.id })
     }
-    onRightClick = () => {}
+
+    onRightClick = (): void => {}
+
     onClick = (ev: MouseEvent): void => {
         if (hasMod(ev)) {
             ev.stopPropagation()
@@ -211,9 +235,11 @@ export class MediaImageL {
         return img
     }
 
+    /** load an image as mask in a comfy workflow beeing created */
     loadInWorkflowAsMask = async (
-        //
+        /** "alpha" | "blue" | "green" | "red" */
         channel: Enum_LoadImageMask_channel,
+        /** workflow to load image as mask into (default to current workflow) */
         workflow_?: ComfyWorkflowL,
     ): Promise<LoadImageMask> => {
         const workflow = workflow_ ?? getCurrentRun_IMPL().workflow
@@ -313,7 +339,7 @@ export class MediaImageL {
      * null if not generated by comfy throu a CushyStudio prompt
      * null if no metadata associated in the node in CushyStudio
      */
-    get ComfyNodeMetadta(): Maybe<ComfyNodeMetadata> {
+    get ComfyNodeMetadata(): Maybe<ComfyNodeMetadata> {
         const nodeID = this.data.promptNodeID
         if (nodeID == null) return null
         return this.graph?.data.metadata[nodeID]
@@ -384,7 +410,7 @@ export class MediaImageL {
     /** allow to pick the best source to preserve CPU and MEMORY */
     urlForSize = (size: number): string => {
         // 32 x 32 mini-thumb
-        const forceThumb = this.st.galleryConf.root.fields.onlyShowBlurryThumbnails.value
+        const forceThumb = this.st.galleryConf.fields.onlyShowBlurryThumbnails.value
         if (forceThumb) return this.thumbhashURL
         if (size < 32) return this.thumbhashURL
 
@@ -397,7 +423,7 @@ export class MediaImageL {
 
     // THUMBNAIL ------------------------------------------------------------------------------------------
     _thumbnailReady: boolean = false
-    get thumbnailURL() {
+    get thumbnailURL(): string {
         // ⏸️ if (this._efficientlyCachedTumbnailBufferURL) return this._efficientlyCachedTumbnailBufferURL
         // no need to add hash suffix, cause path already uses hash
         if (this._thumbnailReady || existsSync(this._thumbnailAbsPath)) return `file://${this._thumbnailAbsPath}`
@@ -429,7 +455,7 @@ export class MediaImageL {
         ctx.drawImage(img, 0, 0)
         p(ctx)
         const newDataURL = canvas.toDataURL(conf?.format, conf?.quality)
-        const out = createMediaImage_fromDataURI(this.st, newDataURL, undefined, this._imageCreationOpts)
+        const out = createMediaImage_fromDataURI(newDataURL, undefined, this._imageCreationOpts)
         return out
     }
 
@@ -445,7 +471,7 @@ export class MediaImageL {
         ctx.fillStyle = p?.color ?? 'white'
         ctx.fillText(text, p?.x ?? 0, p?.y ?? 0)
         const newDataURL = canvas.toDataURL(p?.format, p?.quality)
-        const out = createMediaImage_fromDataURI(this.st, newDataURL, undefined, this._imageCreationOpts)
+        const out = createMediaImage_fromDataURI(newDataURL, undefined, this._imageCreationOpts)
         return out
     }
 
@@ -467,6 +493,73 @@ export class MediaImageL {
         )
     }
 
+    recache(opts?: ImageCreationOpts, preBuff?: Buffer | ArrayBuffer): this {
+        const buff: Buffer | ArrayBuffer = preBuff ?? readFileSync(this.absPath)
+        const uint8arr = new Uint8Array(buff)
+        const fileSize = uint8arr.byteLength
+        const meta = imageMeta(uint8arr)
+        if (meta.width == null) throw new Error(`❌ size.width is null`)
+        if (meta.height == null) throw new Error(`❌ size.height is null`)
+
+        const hash = hashArrayBuffer(uint8arr)
+        if (this.data.hash === hash) {
+            console.log(`[🏞️] exact same imamge; updating promptID and stepID`)
+            const fieldsToUpdate = {}
+            this.update({
+                promptID: opts?.promptID ?? this.data.promptID,
+                stepID: opts?.stepID ?? this.data.stepID,
+            })
+        } else {
+            const relPath = this.relPath
+            console.log(`[🏞️] updating existing image (${relPath})`)
+            this.update({
+                orientation: meta.orientation,
+                type: meta.type,
+                fileSize: fileSize,
+                width: meta.width,
+                height: meta.height,
+                hash,
+                path: relPath,
+                promptID: opts?.promptID ?? this.data.promptID,
+                stepID: opts?.stepID ?? this.data.stepID,
+            })
+        }
+        return this
+    }
+
+    /**
+     * Modify the image directly (inplace) by passing it though a `Sharp` pipeline
+     * Sharp is a high performance image processing library.
+     *
+     */
+    processWithSharp_inplace = async (
+        /** processing function */
+        fn: (sharp: sharp.Sharp) => sharp.Sharp,
+    ): Promise<this> => {
+        const buff = await fn(sharp(this.absPath)).toBuffer()
+        writeFileSync(this.absPath, buff)
+        this.recache({}, buff)
+        return this
+    }
+
+    /**
+     * Allow to run an image though some `Sharp` pipeline to produce an other image.
+     * Sharp is a high performance image processing library.
+     * to modify the image directly (inplace), use `processWithSharp_inplace` instead.
+     */
+    processWithSharp = async (
+        /** processing function */
+        fn: (sharp: sharp.Sharp) => sharp.Sharp,
+        path: string = `outputs/sharp-${Date.now()}`,
+        tags?: string[],
+    ): Promise<MediaImageL> => {
+        const buff = await fn(sharp(this.absPath)).toBuffer()
+        const fpath = new FPath(path)
+        const suffix = this.extension
+        fpath.write(buff)
+        return _createMediaImage_fromLocalyAvailableImage(fpath, buff, this._imageCreationOpts)
+    }
+
     processWithKonva = async (
         fn: (p: { stage: Konva.Stage; layer: Konva.Layer; image: Konva.Image }) => void,
         imageOpts?: {
@@ -485,7 +578,7 @@ export class MediaImageL {
         stage.add(layer)
         fn({ stage, layer, image: konvaImg })
         const newDataURL = stage.toCanvas().toDataURL(imageOpts?.format, imageOpts?.quality)
-        const out = createMediaImage_fromDataURI(this.st, newDataURL, undefined, this._imageCreationOpts)
+        const out = createMediaImage_fromDataURI(newDataURL, undefined, this._imageCreationOpts)
         return out
     }
 

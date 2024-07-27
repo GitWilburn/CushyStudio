@@ -1,5 +1,5 @@
-import type { Entity } from '../csuite/model/Entity'
-import type { SchemaDict } from '../csuite/model/ISchema'
+import type { Field } from '../csuite/model/Field'
+import type { SchemaDict } from '../csuite/model/SchemaDict'
 import type { MediaImageL } from '../models/MediaImage'
 import type { UnifiedCanvas } from '../panels/Panel_Canvas/states/UnifiedCanvas'
 import type { Runtime } from '../runtime/Runtime'
@@ -50,7 +50,7 @@ export type App<FIELDS extends SchemaDict> = {
     ui: (form: X.Builder) => FIELDS
 
     /** so you cana have fancy buttons to switch between a few things */
-    presets?: Record<string, (form: Entity<X.XGroup<NoInfer<FIELDS>>, X.Builder>) => void>
+    presets?: Record<string, (form: X.XGroup<NoInfer<FIELDS>>) => void>
 
     /** app execution logic */
     run: (

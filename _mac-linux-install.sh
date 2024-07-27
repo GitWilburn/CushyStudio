@@ -34,6 +34,7 @@ case "$OS" in
         SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
         mkdir -p $LSHARE/applications
+        mkdir -p $LSHARE/icons
 
         echo "Installing icon to $LSHARE/icons/cushystudio-shell.png"
         # Install icons and .desktop file for Wayland's title icon and tray name to work properly.
@@ -150,18 +151,6 @@ $NPM_BIN_PATH install --legacy-peer-deps=false
 
 # ensuring binary dependencies are correctly linked across installed
 ./node_modules/.bin/electron-builder install-app-deps
-
-# Define the path to tsconfig.custom.json
-tsconfigPath="./tsconfig.custom.json"
-
-# JSON content to write if the file does not exist
-defaultTsconfigJSON='{ "include": ["src", "schema/global.d.ts"], "exclude": [] }'
-
-# Check if the file exists
-if [ ! -f "$tsconfigPath" ]; then
-    # Write the JSON content to the file without formatting
-    echo "$defaultTsconfigJSON" > "$tsconfigPath"
-fi
 
 # Build the release folder
 ./node_modules/.bin/electron -i src/shell/build.js js css

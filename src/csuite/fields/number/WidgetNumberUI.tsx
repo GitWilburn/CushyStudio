@@ -1,4 +1,4 @@
-import type { Widget_number } from './WidgetNumber'
+import type { Field_number } from './FieldNumber'
 
 import { observer } from 'mobx-react-lite'
 
@@ -6,10 +6,10 @@ import { InputNumberUI } from '../../input-number/InputNumberUI'
 
 export const WidgetNumberUI = observer(function WidgetNumberUI_(p: {
     //
-    widget: Widget_number
+    field: Field_number
 }) {
-    const field = p.widget
-    const value = field.serial.val
+    const field = p.field
+    const value = field.serial.value
     const mode = field.config.mode
     const step = field.config.step ?? (mode === 'int' ? 1 : 0.1)
 

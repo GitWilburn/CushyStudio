@@ -1,5 +1,5 @@
-import type { BaseSelectEntry } from '../selectOne/WidgetSelectOne'
-import type { Widget_selectMany } from './WidgetSelectMany'
+import type { BaseSelectEntry } from '../selectOne/FieldSelectOne'
+import type { Field_selectMany } from './FieldSelectMany'
 
 import { observer } from 'mobx-react-lite'
 
@@ -7,36 +7,38 @@ import { InputBoolToggleButtonUI } from '../../checkbox/InputBoolToggleButtonUI'
 import { ResizableFrame } from '../../resizableFrame/resizableFrameUI'
 
 export const WidgetSelectMany_ListUI = observer(function WidgetSelectMany_TabUI_<T extends BaseSelectEntry>(p: {
-    widget: Widget_selectMany<T>
+    field: Field_selectMany<T>
 }) {
-    const widget = p.widget
+    const field = p.field
     return (
         <ResizableFrame
-            header={
-                <>
-                    <input
-                        // placeholder={s.isOpen ? p.placeholder : undefined}
-                        // ref={s.inputRef}
-                        // onChange={s.handleInputChange}
-                        tw='w-full h-full !outline-none csuite-basic-input'
-                        type='text'
-                        // value={s.searchQuery}
-                    />
-                </>
-            }
+        border
             tw='w-full'
+            // header={
+            //     <>
+            //         <input
+            //             // placeholder={s.isOpen ? p.placeholder : undefined}
+            //             // ref={s.inputRef}
+            //             // onChange={s.handleInputChange}
+            //             tw='w-full h-full !outline-none csuite-basic-input'
+            //             type='text'
+            //             // value={s.searchQuery}
+            //         />
+            //     </>
+            // }
         >
-            {widget.choices.slice(0, 100).map((c) => {
-                const isSelected = Boolean(widget.serial.values.find((item) => item.id === c.id))
+            {field.choices.slice(0, 100).map((c) => {
+                const isSelected = Boolean(field.serial.values.find((item) => item.id === c.id))
                 return (
                     <InputBoolToggleButtonUI
+                        key={c.id}
                         value={isSelected}
                         mode='checkbox'
                         showToggleButtonBox
                         tw='w-full'
                         text={c.label}
                         onValueChange={(value) => {
-                            if (value != isSelected) widget.toggleItem(c)
+                            if (value != isSelected) field.toggleItem(c)
                         }}
                     />
                 )

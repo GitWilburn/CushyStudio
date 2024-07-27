@@ -1,94 +1,140 @@
+import { runInAction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 
 import { Button } from '../../button/Button'
+import { useCSuite } from '../../ctx/useCSuite'
 
 export type IWidgetListLike = {
     addItem(): void
     removeAllItems(): void
-    expandAllItems(): void
-    collapseAllItems(): void
+    expandAllChildren(): void
+    collapseAllChildren(): void
     items: unknown[]
     readonly length: number
     config: {
         max?: number
         min?: number
     }
-} //Widget_listExt<any> | Widget_list<any>
+}
 
-export const ListControlsUI = observer(function ListControlsUI_(p: { widget: IWidgetListLike }) {
-    const widget = p.widget
-    const max = widget.config.max
-    const min = widget.config.min
-    const canAdd = max ? widget.items.length < max : true
-    const canClear = min ? widget.items.length > min : true
+export const ListControlsUI = observer(function ListControlsUI_(p: {
+    //
+    field: IWidgetListLike
+    children?: React.ReactNode
+}) {
+    const field = p.field
+    const csuite = useCSuite()
+
     return (
         <div
-            tw='sticky flex gap-0.5 top-0 flex z-[50] w-full'
+            tw='sticky flex items-center gap-0.5 top-0 flex z-[50] w-full'
             onMouseDown={(ev) => {
                 ev.preventDefault()
                 ev.stopPropagation()
             }}
         >
-            <Button
-                size='input'
-                borderless
-                subtle
-                disabled={!canAdd}
-                square
-                icon='mdiPlus'
-                onClick={(ev) => {
-                    if (!canAdd) return
-                    ev.stopPropagation()
-                    widget.addItem()
-                }}
-            />
-            <Button
-                size='input'
-                borderless
-                subtle
-                disabled={!canClear}
-                square
-                icon='mdiDeleteOutline'
-                onClick={(ev) => {
-                    if (!canClear) return
-                    ev.stopPropagation()
-                    widget.removeAllItems()
-                }}
-            />
-            <Button
-                size='input'
-                borderless
-                subtle
-                square
-                icon='mdiUnfoldMoreHorizontal'
-                onClick={(ev) => {
-                    ev.stopPropagation()
-                    widget.expandAllItems()
-                }}
-            />
-            <Button
-                size='input'
-                borderless
-                subtle
-                square
-                icon='mdiUnfoldLessHorizontal'
-                onClick={(ev) => {
-                    ev.stopPropagation()
-                    widget.collapseAllItems()
-                }}
-            />
-            {/* <Button
-                tw='btn-sm join-item btn-ghost'
-                disabled={max ? req.items.length >= max : undefined}
-                icon={<span className='material-symbols-outlined'>add</span>}
-                onClick={() => {
-                    runInAction(() => {
-                        for (let i = 0; i < 100; i++) req.addItem()
-                    })
-                }}
-            >
-                Add 100 more
-            </Button> */}
+            <ListButtonAddUI field={field} />
+            {p.children}
+            <div tw='flex-1' />
+            <ListButtonClearUI field={field} />
+            {csuite.showFoldButtons && <ListButtonFoldUI field={field} />}
+            {csuite.showFoldButtons && <ListButtonUnfoldUI field={field} />}
+            {/* <ListButtonAdd100ItemsUI field={field} /> */}
         </div>
+    )
+})
+
+export const ListButtonAddUI = observer(function ListButtonAddUI_(p: { field: IWidgetListLike }) {
+    const field = p.field
+    const max: number | undefined = field.config.max
+    const canAdd = max != null ? field.items.length < max : true
+    return (
+        <Button
+            size='input'
+            // borderless
+            subtle
+            disabled={!canAdd}
+            square
+            icon='mdiPlus'
+            onClick={(ev) => {
+                if (!canAdd) return
+                ev.stopPropagation()
+                field.addItem()
+            }}
+        />
+    )
+})
+
+export const ListButtonClearUI = observer(function ListButtonClearUI_(p: { field: IWidgetListLike }) {
+    const field = p.field
+    const min: number | undefined = field.config.min
+    const canClear = min != null ? field.items.length > min : true
+    return (
+        <Button
+            size='input'
+            borderless
+            subtle
+            disabled={!canClear}
+            square
+            icon='mdiDeleteSweep'
+            onClick={(ev) => {
+                if (!canClear) return
+                ev.stopPropagation()
+                field.removeAllItems()
+            }}
+        />
+    )
+})
+export const ListButtonFoldUI = observer(function ListButtonFoldUI_(p: { field: IWidgetListLike }) {
+    const field = p.field
+    return (
+        <Button
+            size='input'
+            borderless
+            subtle
+            square
+            icon='mdiUnfoldMoreHorizontal'
+            onClick={(ev) => {
+                ev.stopPropagation()
+                field.expandAllChildren()
+            }}
+        />
+    )
+})
+
+export const ListButtonUnfoldUI = observer(function ListButtonUnfoldUI_(p: { field: IWidgetListLike }) {
+    const field = p.field
+    return (
+        <Button
+            size='input'
+            borderless
+            subtle
+            square
+            icon='mdiUnfoldLessHorizontal'
+            onClick={(ev) => {
+                ev.stopPropagation()
+                field.collapseAllChildren()
+            }}
+        />
+    )
+})
+
+export const ListButtonAdd100ItemsUI = observer(function ListButtonAdd100ItemsUI_(p: { field: IWidgetListLike }) {
+    const field = p.field
+    return (
+        <Button
+            size='input'
+            borderless
+            subtle
+            square
+            icon='mdiUnfoldLessHorizontal'
+            onClick={() => {
+                runInAction(() => {
+                    for (let i = 0; i < 100; i++) field.addItem()
+                })
+            }}
+        >
+            Add 100 more
+        </Button>
     )
 })

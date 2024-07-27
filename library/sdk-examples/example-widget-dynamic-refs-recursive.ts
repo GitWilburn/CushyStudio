@@ -1,9 +1,9 @@
 import type { Schema } from '../../src/controls/Schema'
-import type { Widget_choices } from '../../src/csuite/fields/choices/WidgetChoices'
-import type { Widget_group } from '../../src/csuite/fields/group/WidgetGroup'
-import type { Widget_image } from '../../src/csuite/fields/image/WidgetImage'
-import type { Widget_list } from '../../src/csuite/fields/list/WidgetList'
-import type { Widget_selectOne } from '../../src/csuite/fields/selectOne/WidgetSelectOne'
+import type { Field_choices } from '../../src/csuite/fields/choices/FieldChoices'
+import type { Field_group } from '../../src/csuite/fields/group/FieldGroup'
+import type { Field_image } from '../../src/csuite/fields/image/FieldImage'
+import type { Field_list } from '../../src/csuite/fields/list/FieldList'
+import type { Field_selectOne } from '../../src/csuite/fields/selectOne/FieldSelectOne'
 
 app({
     ui: (form) => ({
@@ -20,7 +20,7 @@ app({
                             // showID: true,
                             // if choices is a function, the form root is injected as first parameter
                             choices: (self) => {
-                                const formRoot = self.root as Widget_group<any>
+                                const formRoot = self.root as Field_group<any>
 
                                 // 🔶 null when the form is not yet fully initialized
                                 if (formRoot.fields.samplerUI == null) return []
@@ -28,12 +28,12 @@ app({
                                 // 🔶 self-referencing => typescript can't infer the type here
                                 // so to make sure code is correct, we need to cast it to the correct type
                                 // (and yes, types are slighly verbose for now)
-                                const steps = formRoot.fields.samplerUI as Widget_list<
+                                const steps = formRoot.fields.samplerUI as Field_list<
                                     Schema<
-                                        Widget_choices<{
-                                            sampler_output_abc_asdf: Schema<Widget_selectOne<any>>
-                                            empty_latent: Schema<Widget_group<any>>
-                                            pick_image: Schema<Widget_image>
+                                        Field_choices<{
+                                            sampler_output_abc_asdf: Schema<Field_selectOne<any>>
+                                            empty_latent: Schema<Field_group<any>>
+                                            pick_image: Schema<Field_image>
                                         }>
                                     >
                                 >
@@ -43,7 +43,7 @@ app({
                                     // 🔶 probably useless check now
                                     if (choiceWidget == null) console.log(`[🔴] err 1: choiceWidget is null`)
 
-                                    const _selectOne = choiceWidget.firstActiveBranchWidget
+                                    const _selectOne = choiceWidget.firstActiveBranchField
                                     // 🔶 probably useless check now (bis)
                                     if (_selectOne == null) console.log(`[🔴] err 2: firstActiveBranchWidget is null`, _selectOne) // prettier-ignore
 

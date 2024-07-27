@@ -1,5 +1,5 @@
 import type { Kolor } from '../kolor/Kolor'
-import type { Tint } from '../kolor/Tint'
+import type { Tint, TintExt } from '../kolor/Tint'
 
 import { NumberVar } from '../tinyCSS/CSSVar'
 
@@ -9,6 +9,11 @@ import { NumberVar } from '../tinyCSS/CSSVar'
  * can be configured by project
  */
 export interface CSuiteConfig {
+    // ------------------------------------------------------------
+    // [tooltip delay]
+    /** how much delay on hover before relealing the tooltip */
+    tooltipDelay: Maybe<number>
+
     // ------------------------------------------------------------
     // [mouse sensitivity]
     clickAndSlideMultiplicator: number
@@ -24,9 +29,11 @@ export interface CSuiteConfig {
     showWidgetMenu: boolean
     showWidgetDiff: boolean
     showToggleButtonBox: boolean
+    showFoldButtons: boolean
 
     // ------------------------------------------------------------
     // [size]
+    widgetHeight: number
     inputHeight: number
 
     // ------------------------------------------------------------
@@ -35,7 +42,9 @@ export interface CSuiteConfig {
     baseStr: string
     text: Tint
     inputBorder: number | NumberVar<'input-border'>
+    inputContrast?: number
     labelText?: Tint
+    labelBackground?: TintExt
     shiftDirection?: 1 | -1 /** shiftDirection will change at threesholds (0.25 when pos, .75 when neg) */
     fieldGroups: {
         border?: Maybe<number>

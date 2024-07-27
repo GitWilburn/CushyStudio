@@ -1,10 +1,13 @@
 import type { Box } from '../box/Box'
 import type { IconName } from '../icons/icons'
 import type { TintExt } from '../kolor/Tint'
-import type { Json, JSONDict } from '../types/Json'
-import type { CovariantFn, CovariantFnX } from '../variance/BivariantHack'
+import type { CovariantFn, CovariantFn1 } from '../variance/BivariantHack'
 import type { CovariantFC } from '../variance/CovariantFC'
 import type { $FieldTypes } from './$FieldTypes'
+import type { BaseSchema } from './BaseSchema'
+import type { Field } from './Field'
+import type { FieldReaction } from './pubsub/FieldReaction'
+import type { Producer } from './pubsub/Producer'
 import type { Problem_Ext } from './Validation'
 
 export type FieldConfig<X, T extends $FieldTypes> = X & FieldConfig_CommonProperties<T>
@@ -30,33 +33,41 @@ export interface FieldConfig_CommonProperties<out T extends $FieldTypes> {
      */
     box?: Box
 
+    /** allow to specify custom headers */
+    header?: null | CovariantFC<{ field: T['$Field'] }>
+
+    /** allow to specify custom body */
+    body?: null | CovariantFC<{ field: T['$Field'] }>
+
     /**
      * @since 2024-05-14
      * @stability beta
-     * This function will be executed either on first creation, or when the
-     * evaluationKey changes. The evaluationKey is stored in the group serial.
+     * This function will be executed before every widget instanciation.
+     * if the version is not the samed as store in the serial
      */
-    onCreate?: CovariantFn<T['$Field'], void> // & { evaluationKey?: string }
-    onCreateKey?: string
+    beforeInit?: CovariantFn<[serial: unknown /* T['$Serial'] */], T['$Serial']>
+    version?: string
 
     /**
      * @since 2024-05-14
      * @stability beta
      * This function will be executed either on every widget instanciation.
      */
-    onInit?: CovariantFn<T['$Field'], void>
-
-    /** allow to specify custom headers */
-    header?: null | CovariantFC<{ widget: T['$Field'] }>
-
-    /** allow to specify custom body */
-    body?: null | CovariantFC<{ widget: T['$Field'] }>
+    onInit?: CovariantFn1<T['$Field'], void>
 
     /** will be called when value changed */
-    onValueChange?: CovariantFnX<[val: T['$Value'], self: T['$Field']], void>
+    onValueChange?: CovariantFn<[field: T['$Field']], void>
 
     /** will be called when serial changed */
-    onSerialChange?: CovariantFnX<[val: T['$Serial'], self: T['$Field']], void>
+    onSerialChange?: CovariantFn<[self: T['$Field']], void>
+
+    /**
+     * will be called before disposing the tree
+     * @since 2024-07-11
+     * @status NOT IMPLEMENTED
+     * @experimental
+     */
+    onDispose?: CovariantFn1<T['$Field'], void>
 
     /** allow to set custom actions on your widgets */
     presets?: WidgetMenuAction<T>[]
@@ -70,7 +81,7 @@ export interface FieldConfig_CommonProperties<out T extends $FieldTypes> {
      *  - ["errMsg", ...]
      *  - "errMsg"
      * */
-    check?: CovariantFnX<[val: T['$Field']], Problem_Ext>
+    check?: CovariantFn<[val: T['$Field']], Problem_Ext>
 
     /**
      * The label to display.
@@ -122,6 +133,26 @@ export interface FieldConfig_CommonProperties<out T extends $FieldTypes> {
 
     /** unused internally, here so you can add whatever you want inside */
     custom?: any
+
+    /** mixin system for the schema */
+    customSchemaProperties?: SchemaExtension<any>[]
+
+    /** mixin system for the field */
+    customFieldProperties?: FieldExtension<any>[]
+
+    /**
+     * you probably DON'T want to specify this manually.
+     * you can use the <schema>.publish(...) method instead
+     *                          ^^^^^^^^^^^^
+     */
+    producers?: Producer<any, T['$Field']>[]
+
+    /**
+     * you probably DON'T want to specify this manually.
+     * you can use the <schema>.addReaction(...) method instead
+     *                          ^^^^^^^^^^^^^^^^
+     */
+    reactions?: FieldReaction<T>[]
 }
 
 export interface WidgetMenuAction<out T extends $FieldTypes> {
@@ -130,3 +161,6 @@ export interface WidgetMenuAction<out T extends $FieldTypes> {
     icon?: IconName
     apply(form: T['$Field']): void
 }
+
+export type SchemaExtension<T extends BaseSchema<any>> = (schema: T) => object
+export type FieldExtension<T extends Field> = (field: T) => object

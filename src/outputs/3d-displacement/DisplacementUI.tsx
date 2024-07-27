@@ -26,7 +26,7 @@ export const DisplacementUI2 = observer(function DisplacementUI2_(p: { uist: Dis
         uist.p.image,
     ])
 
-    const conf = st.displacementConf.root.fields
+    const conf = st.displacementConf.fields
     return (
         <>
             <ambientLight color={conf.ambientLightColor.value} intensity={conf.ambientLightIntensity.value} />
@@ -80,13 +80,13 @@ export const DisplacementUI2 = observer(function DisplacementUI2_(p: { uist: Dis
                     // onChange={(e) => {
                     //     const curr = ref.current as OrbitControlsT
                     //     runInAction(() => {
-                    //         p.widget.serial.val.azimuth = clampMod(-90 + curr.getAzimuthalAngle() * (180 / Math.PI), -180, 180)
-                    //         p.widget.serial.val.elevation = clampMod(90 - curr.getPolarAngle() * (180 / Math.PI), -180, 180) // (Math.PI / 4 - curr.getPolarAngle()) * (180 / Math.PI)
-                    //         // console.log(`[👙] `, JSON.stringify(p.widget.state.val))
+                    //         p.widget.value.azimuth = clampMod(-90 + curr.getAzimuthalAngle() * (180 / Math.PI), -180, 180)
+                    //         p.widget.value.elevation = clampMod(90 - curr.getPolarAngle() * (180 / Math.PI), -180, 180) // (Math.PI / 4 - curr.getPolarAngle()) * (180 / Math.PI)
+                    //         // console.log(`[🧐] `, JSON.stringify(p.widget.state.val))
                     //     })
                     //     // if (e == null) return
                     //     // const azimuthDeg = e.azimuthalAngle * (180 / Math.PI)
-                    //     // const elevationDeg = console.log(`[👙] `, { rotation, azimuthDeg, elevationDeg })
+                    //     // const elevationDeg = console.log(`[🧐] `, { rotation, azimuthDeg, elevationDeg })
                     // }}
                 />
             ) : (

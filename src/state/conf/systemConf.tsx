@@ -1,8 +1,8 @@
-import { cushyRepo } from '../../controls/Builder'
+import { cushyFactory } from '../../controls/Builder'
 import { WidgetWithLabelUI } from '../../csuite/form/WidgetWithLabelUI'
 import { readJSON, writeJSON } from '../jsonUtils'
 
-export const systemConf = cushyRepo.form(
+export const systemConf = cushyFactory.entity(
     (ui) =>
         ui.fields(
             {
@@ -33,13 +33,13 @@ export const systemConf = cushyRepo.form(
                 label: false,
                 collapsed: false,
                 body: (w) => {
-                    const f = w.widget.fields
+                    const f = w.field.fields
                     return (
                         <div
                             tw='flex flex-1 flex-grow flex-col gap-5' //TODO(bird_d): COMPONENT REPLACE: These "containers" should be replaced by a group component.
                         >
                             <div tw='flex w-full flex-1 flex-grow flex-col gap-1'>
-                                <WidgetWithLabelUI fieldName='' widget={f.externalEditor} />
+                                <WidgetWithLabelUI fieldName='' field={f.externalEditor} />
                             </div>
                         </div>
                     )
@@ -48,7 +48,7 @@ export const systemConf = cushyRepo.form(
         ),
     {
         name: 'System Config',
-        initialSerial: () => readJSON('settings/system.json'),
+        serial: () => readJSON('settings/system.json'),
         onSerialChange: (form) => writeJSON('settings/system.json', form.serial),
     },
 )

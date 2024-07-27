@@ -1,30 +1,33 @@
-import type { Widget_image } from './WidgetImage'
+import type { Field_image } from './FieldImage'
 
-import { runInAction } from 'mobx'
 import { observer } from 'mobx-react-lite'
 import { nanoid } from 'nanoid'
 
 import { createMediaImage_fromBlobObject } from '../../../models/createMediaImage_fromWebFile'
+import { FPath } from '../../../models/PathObj'
 import { useSt } from '../../../state/stateContext'
 import { asRelativePath } from '../../../utils/fs/pathUtils'
 import { useImageDrop } from '../../../widgets/galleries/dnd'
 import { ImageUI } from '../../../widgets/galleries/ImageUI'
 import { Button } from '../../button/Button'
+import { SpacerUI } from '../../components/SpacerUI'
 import { Frame } from '../../frame/Frame'
 import { ResizableFrame } from '../../resizableFrame/resizableFrameUI'
-import { SpacerUI } from '../spacer/SpacerUI'
 
-export const WidgetSelectImageUI = observer(function WidgetSelectImageUI_(p: { widget: Widget_image }) {
-    const widget = p.widget
+export const WidgetSelectImageUI = observer(function WidgetSelectImageUI_(p: {
+    //
+    field: Field_image
+}) {
+    const field = p.field
     const st = useSt()
     const [dropStyle, dropRef] = useImageDrop(st, (imageL) => {
-        widget.value = imageL
+        field.value = imageL
     })
-    const image = widget.value
-    const suggestionsRaw = p.widget.config.assetSuggested
+    const image = field.value
+    const suggestionsRaw = p.field.config.assetSuggested
     const suggestions: RelativePath[] =
         suggestionsRaw == null ? [] : Array.isArray(suggestionsRaw) ? suggestionsRaw : [suggestionsRaw]
-    const size = widget.size
+    const size = field.size
     console.log('size: ', size)
     return image != null ? ( //
         <ResizableFrame // Container
@@ -32,7 +35,7 @@ export const WidgetSelectImageUI = observer(function WidgetSelectImageUI_(p: { w
             tw='text-sm w-full'
             currentSize={size}
             onResize={(val) => {
-                widget.size = val
+                field.size = val
             }}
             snap={16}
             base={{ contrast: -0.025 }}
@@ -53,11 +56,9 @@ export const WidgetSelectImageUI = observer(function WidgetSelectImageUI_(p: { w
                                                 const blob = await clipboardItem.getType(type)
                                                 const imageID = nanoid()
                                                 const filename = `${imageID}.png`
-
-                                                const relPath = asRelativePath(`outputs/imported/${filename}`)
-
-                                                const out = await createMediaImage_fromBlobObject(cushy, blob, relPath)
-                                                widget.value = out
+                                                const fpath = new FPath(`outputs/imported/${filename}`)
+                                                const out = await createMediaImage_fromBlobObject(blob, fpath)
+                                                field.value = out
                                             }
                                         }
                                     }
@@ -70,7 +71,7 @@ export const WidgetSelectImageUI = observer(function WidgetSelectImageUI_(p: { w
                     <Button //
                         square
                         icon={'mdiRestore'}
-                        onClick={() => (widget.value = cushy.defaultImage)}
+                        onClick={() => (field.value = cushy.defaultImage)}
                     />
                 </>
             }
@@ -88,7 +89,7 @@ export const WidgetSelectImageUI = observer(function WidgetSelectImageUI_(p: { w
                 className='DROP_IMAGE_HANDLER'
                 tw='_WidgetSelectImageUI flex flex-1 w-full h-full'
             >
-                <ImageUI img={image} size={widget.size} />
+                <ImageUI img={image} size={field.size} />
             </div>
         </ResizableFrame>
     ) : (

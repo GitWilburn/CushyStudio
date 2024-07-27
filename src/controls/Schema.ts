@@ -1,92 +1,59 @@
-import type { CovariantFC, CovariantFnX } from '../csuite'
-import type { Widget_link_config } from '../csuite/fields/link/WidgetLink'
-import type { Widget_list, Widget_list_config } from '../csuite/fields/list/WidgetList'
-import type { Widget_optional } from '../csuite/fields/optional/WidgetOptional'
-import type { BaseField } from '../csuite/model/BaseField'
-import type { ISchema } from '../csuite/model/ISchema'
+import type { CovariantFC, CovariantFn } from '../csuite'
+import type { Field_link_config } from '../csuite/fields/link/FieldLink'
+import type { Field } from '../csuite/model/Field'
+import type { Repository } from '../csuite/model/Repository'
 import type { Requirements } from '../manager/REQUIREMENTS/Requirements'
 
 import { createElement, type ReactNode } from 'react'
 
-import { isWidgetOptional } from '../csuite/fields/WidgetUI.DI'
-import { Channel, type ChannelId, Producer } from '../csuite/model/Channel'
+import { Field_list, Field_list_config } from '../csuite/fields/list/FieldList'
+import { Field_optional } from '../csuite/fields/optional/FieldOptional'
+import { getFieldLinkClass, isFieldOptional } from '../csuite/fields/WidgetUI.DI'
+import { BaseSchema } from '../csuite/model/BaseSchema'
 import { objectAssignTsEfficient_t_pt } from '../csuite/utils/objectAssignTsEfficient'
+import { potatoClone } from '../csuite/utils/potatoClone'
 import { InstallRequirementsBtnUI } from '../manager/REQUIREMENTS/Panel_InstallRequirementsUI'
 
-export class Schema<out Field extends BaseField = BaseField> implements ISchema<Field> {
-    $Field!: Field
-    $Type!: Field['type']
-    $Config!: Field['$Config']
-    $Serial!: Field['$Serial']
-    $Value!: Field['$Value']
+export class Schema<out FIELD extends Field = Field> extends BaseSchema<FIELD> {
+    FieldClass_UNSAFE: any
+
+    get type(): FIELD['$Type'] {
+        return this.FieldClass_UNSAFE.type
+    }
 
     constructor(
-        //
-        public readonly type: Field['type'],
-        public readonly config: Field['$Config'],
-    ) {}
-
-    _methods: any = {}
-    actions<T extends { [methodName: string]: (self: Field) => any }>(t: T): Schema<Field & T> {
-        Object.assign(this._methods, t)
-        return this as any
-    }
-
-    _skins: any = {}
-    skins<
-        T extends {
-            // prettier-ignore
-            [methodName: string]:
-                /** simplified skin definition */
-                | { [key: string]: any }
-                /** full react field */
-                | ((p: { widget: Field }) => ReactNode)
+        FieldClass: {
+            readonly type: FIELD['$Type']
+            new (
+                //
+                repo: Repository,
+                root: Field,
+                parent: Field | null,
+                schema: BaseSchema<FIELD>,
+                serial?: FIELD['$Serial'],
+            ): FIELD
         },
-    >(t: T): Schema<Field & T /* & { skin: T } */> {
-        Object.assign(this._skins, t)
-        return this as any
+        public readonly config: FIELD['$Config'],
+    ) {
+        super()
+        this.FieldClass_UNSAFE = FieldClass
+        this.applySchemaExtensions()
+        // makeObservable(this, {
+        //     config: true,
+        //     FieldClass_UNSAFE: false,
+        // })
     }
 
-    LabelExtraUI: CovariantFC<{ widget: Field }> = (p: { widget: Field }) =>
+    LabelExtraUI: CovariantFC<{ field: FIELD }> = (p: { field: FIELD }) =>
         createElement(InstallRequirementsBtnUI, {
-            active: isWidgetOptional(p.widget) ? p.widget.serial.active : true,
+            active: isFieldOptional(p.field) ? p.field.serial.active : true,
             requirements: this.requirements,
         })
-
-    producers: Producer<any, Field['$Field']>[] = []
-    publish<T>(chan: Channel<T> | ChannelId, produce: (self: Field['$Field']) => T): this {
-        this.producers.push({ chan, produce })
-        return this
-    }
-
-    subscribe<T>(chan: Channel<T> | ChannelId, effect: (arg: T, self: Field['$Field']) => void): this {
-        return this.addReaction(
-            (self) => self.consume(chan),
-            (arg, self) => {
-                if (arg == null) return
-                effect(arg, self)
-            },
-        )
-    }
-
-    reactions: {
-        expr(self: Field['$Field']): any
-        effect(arg: any, self: Field['$Field']): void
-    }[] = []
-
-    addReaction<T>(
-        //
-        expr: (self: Field['$Field']) => T,
-        effect: (arg: T, self: Field['$Field']) => void,
-    ): this {
-        this.reactions.push({ expr, effect })
-        return this
-    }
 
     // Requirements (CushySpecifc)
     readonly requirements: Requirements[] = []
 
-    addRequirements(requirements: Maybe<Requirements | Requirements[]>) {
+    addRequirements(requirements: Maybe<Requirements | Requirements[]>): this {
         if (requirements == null) return this
         if (Array.isArray(requirements)) this.requirements.push(...requirements)
         else this.requirements.push(requirements)
@@ -94,38 +61,37 @@ export class Schema<out Field extends BaseField = BaseField> implements ISchema<
         return this
     }
 
-    useIn<BP extends ISchema>(
-        //
-        fn: CovariantFnX<[self: Field], BP>,
+    useIn<BP extends BaseSchema>(
+        /** function that dynamically return a new child schema
+         * that depends on the instance that will be created by this schema
+         */
+        fn: CovariantFn<[field: FIELD], BP>,
     ): X.XLink<this, BP> {
-        const linkConf: Widget_link_config<this, BP> = { share: this, children: fn }
-        return new Schema('link', linkConf)
+        const FieldLink = getFieldLinkClass()
+        const linkConf: Field_link_config<this, BP> = { share: this, children: fn }
+        return new Schema(FieldLink, linkConf)
     }
 
-    Make<X extends BaseField>(type: X['type'], config: X['$Config']) {
-        return new Schema(type, config)
-    }
-
-    /** wrap widget spec to list stuff */
-    list = (config: Omit<Widget_list_config<any>, 'element'> = {}): X.XList<this> =>
-        new Schema<Widget_list<this>>('list', {
+    /** wrap widget schema to list stuff */
+    list(config: Omit<Field_list_config<any>, 'element'> = {}): X.XList<this> {
+        return new Schema<Field_list<this>>(Field_list, {
             ...config,
             element: this,
         })
+    }
 
-    /** clone the spec, and patch the cloned config */
-    withConfig(config: Partial<Field['$Config']>): Schema<Field> {
-        const mergedConfig = objectAssignTsEfficient_t_pt(this.config, config)
-        const cloned = new Schema<Field>(this.type, mergedConfig)
-        // 🔴 Keep producers and reactions -> could probably be part of the ctor
-        cloned.producers = this.producers
-        cloned.reactions = this.reactions
-        return cloned
+    /** clone the schema, and patch the cloned config */
+    withConfig(config: Partial<FIELD['$Config']>): this {
+        const mergedConfig = objectAssignTsEfficient_t_pt(potatoClone(this.config), config)
+        const cloned = new Schema<FIELD>(this.FieldClass_UNSAFE, mergedConfig)
+        return cloned as this
+
+        // 2024-07-17YOLO🦀🦊 dont' rewrite this here
     }
 
     optional(startActive: boolean = false): X.XOptional<this> {
-        return new Schema<Widget_optional<this>>('optional', {
-            widget: this,
+        return new Schema<Field_optional<this>>(Field_optional, {
+            schema: this,
             startActive: startActive,
             label: this.config.label,
             // requirements: this.config.requirements,
@@ -133,10 +99,5 @@ export class Schema<out Field extends BaseField = BaseField> implements ISchema<
             collapsed: this.config.collapsed,
             border: this.config.border,
         })
-    }
-
-    /** clone the spec, and patch the cloned config to make it hidden */
-    hidden() {
-        return this.withConfig({ hidden: true })
     }
 }

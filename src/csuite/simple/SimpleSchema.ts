@@ -1,104 +1,85 @@
-import type { Widget_list, Widget_list_config } from '../fields/list/WidgetList'
-import type { Widget_optional } from '../fields/optional/WidgetOptional'
-import type { Widget_shared } from '../fields/shared/WidgetShared'
-import type { BaseField } from '../model/BaseField'
-import type { Channel, ChannelId, Producer } from '../model/Channel'
-import type { ISchema } from '../model/ISchema'
-import type { SList, SOptional } from './SimpleAliases'
+import type { Field_link, Field_link_config } from '../fields/link/FieldLink'
+import type { Field_list, Field_list_config } from '../fields/list/FieldList'
+import type { Field_optional } from '../fields/optional/FieldOptional'
+import type { Field } from '../model/Field'
+import type { Instanciable } from '../model/Instanciable'
+import type { Repository } from '../model/Repository'
+import type { CovariantFn } from '../variance/BivariantHack'
 
 import { makeObservable } from 'mobx'
 
-import { getCurrentForm_IMPL } from '../model/runWithGlobalForm'
+import { getFieldLinkClass, getFieldListClass, getFieldOptionalClass } from '../fields/WidgetUI.DI'
+import { BaseSchema } from '../model/BaseSchema'
 import { objectAssignTsEfficient_t_pt } from '../utils/objectAssignTsEfficient'
+import { potatoClone } from '../utils/potatoClone'
 
-// Simple Spec --------------------------------------------------------
+export class SimpleSchema<out FIELD extends Field = Field> extends BaseSchema<FIELD> implements Instanciable<FIELD> {
+    FieldClass_UNSAFE: any
 
-export class SimpleSchema<out Field extends BaseField = BaseField> implements ISchema<Field> {
-    $Field!: Field
-    $Type!: Field['type']
-    $Config!: Field['$Config']
-    $Serial!: Field['$Serial']
-    $Value!: Field['$Value']
-
-    LabelExtraUI() {
-        return null
-    }
-
-    // PubSub -----------------------------------------------------
-    producers: Producer<any, Field['$Field']>[] = []
-    publish<T>(chan: Channel<T> | ChannelId, produce: (self: Field['$Field']) => T): this {
-        this.producers.push({ chan, produce })
-        return this
-    }
-
-    subscribe<T>(chan: Channel<T> | ChannelId, effect: (arg: T, self: Field['$Field']) => void): this {
-        return this.addReaction(
-            (self) => self.consume(chan),
-            (arg, self) => {
-                if (arg == null) return
-                effect(arg, self)
-            },
-        )
-    }
-
-    reactions: {
-        expr(self: Field['$Field']): any
-        effect(arg: any, self: Field['$Field']): void
-    }[] = []
-    addReaction<T>(
-        //
-        expr: (self: Field['$Field']) => T,
-        effect: (arg: T, self: Field['$Field']) => void,
-    ): this {
-        this.reactions.push({ expr, effect })
-        return this
-    }
-
-    // -----------------------------------------------------
-    Make<X extends BaseField>(type: X['type'], config: X['$Config']) {
-        return new SimpleSchema(type, config)
+    get type(): FIELD['$Type'] {
+        return this.FieldClass_UNSAFE.type
     }
 
     constructor(
-        //
-        public readonly type: Field['type'],
-        public readonly config: Field['$Config'],
+        FieldClass: {
+            readonly type: FIELD['$Type']
+            new (
+                //
+                repo: Repository,
+                root: Field,
+                parent: Field | null,
+                spec: BaseSchema<FIELD>,
+                serial?: FIELD['$Serial'],
+            ): FIELD
+        },
+        public readonly config: FIELD['$Config'],
     ) {
-        makeObservable(this, { config: true })
+        super()
+        this.FieldClass_UNSAFE = FieldClass
+        this.applySchemaExtensions()
+        makeObservable(this, {
+            config: true,
+            FieldClass_UNSAFE: false,
+        })
     }
 
-    /** wrap widget spec to list stuff */
-    list(config: Omit<Widget_list_config<this>, 'element'> = {}): SList<this> {
-        return new SimpleSchema<Widget_list<this>>('list', {
+    /**
+     * chain construction
+     * @since 2024-06-30
+     * TODO: WRITE MORE DOC
+     */
+    useIn<BP extends BaseSchema>(fn: CovariantFn<[field: FIELD], BP>): S.SLink<this, BP> {
+        const FieldLinkClass = getFieldLinkClass()
+        const linkConf: Field_link_config<this, BP> = { share: this, children: fn }
+        return new SimpleSchema<Field_link<this, BP>>(FieldLinkClass, linkConf)
+    }
+
+    /** wrap field schema to list stuff */
+    list(config: Omit<Field_list_config<this>, 'element'> = {}): S.SList<this> {
+        const FieldListClass = getFieldListClass()
+        return new SimpleSchema<Field_list<this>>(FieldListClass, {
             ...config,
             element: this,
         })
     }
 
-    optional(startActive: boolean = false): SOptional<this> {
-        return new SimpleSchema<Widget_optional<this>>('optional', {
-            widget: this,
+    /** make field optional (A => Maybe<A>) */
+    optional(startActive: boolean = false): S.SOptional<this> {
+        const FieldOptionalClass = getFieldOptionalClass()
+        return new SimpleSchema<Field_optional<this>>(FieldOptionalClass, {
+            schema: this,
             startActive: startActive,
             label: this.config.label,
-            // requirements: this.config.requirements,
             startCollapsed: this.config.startCollapsed,
             collapsed: this.config.collapsed,
             border: this.config.border,
         })
     }
 
-    /** clone the spec, and patch the cloned config */
-    withConfig(config: Partial<Field['$Config']>): SimpleSchema<Field> {
-        const mergedConfig = objectAssignTsEfficient_t_pt(this.config, config)
-        const cloned = new SimpleSchema<Field>(this.type, mergedConfig)
-        // 🔴 Keep producers and reactions -> could probably be part of the ctor
-        cloned.producers = this.producers
-        cloned.reactions = this.reactions
-        return cloned
-    }
-
-    /** clone the spec, and patch the cloned config to make it hidden */
-    hidden(): SimpleSchema<Field> {
-        return this.withConfig({ hidden: true })
+    /** clone the schema, and patch the cloned config */
+    withConfig(config: Partial<FIELD['$Config']>): this {
+        const mergedConfig = objectAssignTsEfficient_t_pt(potatoClone(this.config), config)
+        const cloned = new SimpleSchema<FIELD>(this.FieldClass_UNSAFE, mergedConfig)
+        return cloned as this
     }
 }

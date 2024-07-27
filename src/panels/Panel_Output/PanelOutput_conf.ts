@@ -1,7 +1,7 @@
-import { cushyRepo } from '../../controls/Builder'
+import { cushyFactory } from '../../controls/Builder'
 import { readJSON, writeJSON } from '../../state/jsonUtils'
 
-export const PanelOutputConf = cushyRepo.form(
+export const PanelOutputConf = cushyFactory.entity(
     (ui) =>
         ui.fields(
             {
@@ -13,7 +13,7 @@ export const PanelOutputConf = cushyRepo.form(
         ),
     {
         name: 'panel-output',
-        initialSerial: () => readJSON('settings/panel-output-config.json'),
+        serial: () => readJSON('settings/panel-output-config.json'),
         onSerialChange: (form) => writeJSON('settings/panel-output-config.json', form.serial),
     },
 )

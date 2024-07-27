@@ -1,7 +1,7 @@
 import { observer } from 'mobx-react-lite'
 
 import { Button } from '../csuite/button/Button'
-import { SpacerUI } from '../csuite/fields/spacer/SpacerUI'
+import { SpacerUI } from '../csuite/components/SpacerUI'
 import { Frame } from '../csuite/frame/Frame'
 import { PanelHeaderUI } from '../csuite/wrappers/PanelHeader'
 import { cmd_fav_toggleFavBar } from '../operators/commands/cmd_favorites'
@@ -11,12 +11,14 @@ import { UpdateBtnUI } from '../updater/UpdateBtnUI'
 import { assets } from '../utils/assets/assets'
 // import { MenuHelpUI } from './MenuHelpUI'
 import { MenuAboutUI } from './MenuAboutUI'
+import { MenuDebugUI } from './MenuDebugUI'
 // import { CushyStudioLinkUI } from './AppBarCushyStudioLinkUI'
 // import { MenuAuthUI } from './MenuAuthUI'
 // import { MenuWindowUI } from './MenuWindowUI'
 import { MenuEditUI } from './MenuEditUI'
 import { MenuNSFWCheckerUI } from './MenuNSFWChecker'
 import { MenuSettingsUI } from './MenuSettingsUI'
+import { MenuUtilsUI } from './MenuUtilsUI'
 import { MenuPanelsUI } from './MenuWindowUI'
 
 export const AppBarUI = observer(function AppBarUI_(p: {}) {
@@ -38,7 +40,9 @@ export const AppBarUI = observer(function AppBarUI_(p: {}) {
                 <MenuSettingsUI // TODO(bird_d): Should go inside "Edit" eventually, the nesting is probably inconvienient for now.
                 />
                 {/* <MenuWindowUI /> */}
+                <MenuUtilsUI />
                 <MenuAboutUI />
+                <MenuDebugUI />
 
                 <SpacerUI />
                 <HostWebsocketIndicatorUI host={mainHost} />

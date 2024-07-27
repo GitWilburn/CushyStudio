@@ -1,17 +1,16 @@
 import type { Activity } from '../activity/Activity'
-import type { BoundCommand } from '../commands/Command'
 import type { IconName } from '../icons/icons'
-import type { BaseField } from '../model/BaseField'
 import type { NO_PROPS } from '../types/NO_PROPS'
-import type { SimpleMenuModal } from './SimpleMenuModal'
+import type { MenuEntry } from './MenuEntry'
 
 import { nanoid } from 'nanoid'
-import { createElement, type FC, type UIEvent, useMemo } from 'react'
+import { createElement, type UIEvent, useMemo } from 'react'
 
 import { activityManager } from '../activity/ActivityManager'
 import { Command } from '../commands/Command'
 import { BoundMenuSym } from '../introspect/_isBoundMenu'
 import { Trigger } from '../trigger/Trigger'
+import { menuBuilder, type MenuBuilder } from './MenuBuilder'
 import { MenuRootUI, MenuUI } from './MenuUI'
 import { SimpleMenuAction } from './SimpleMenuAction'
 
@@ -19,8 +18,8 @@ import { SimpleMenuAction } from './SimpleMenuAction'
 // COMMAND MANAGER Centralize every single command
 class MenuManager {
     operators: Menu<any>[] = []
-    registerMenu = (menu: Menu<any>) => this.operators.push(menu)
-    getMenuById = (id: string) => this.operators.find((op) => op.def.id === id)
+    registerMenu = (menu: Menu<any>): number => this.operators.push(menu)
+    getMenuById = (id: string): Menu<any> | undefined => this.operators.find((op) => op.def.id === id)
 }
 const menuManager = new MenuManager()
 
@@ -37,42 +36,33 @@ export type MenuEntryWithKey = {
     charIx?: number
 }
 
-// prettier-ignore
-export type MenuEntry =
-    /** inline subform  */
-    | BaseField
-    /** custom component  */
-    | FC<{}>
-    /** a command */
-    | Command /* command may be passed unbound: in that case, they retrieve their context from their provider */
-    | BoundCommand
-    | BoundMenu
-    /** simple MenuEntry */
-    | SimpleMenuAction
-    | SimpleMenuModal
-
 /** supplied menu definition */
 export type MenuDef<Props> = {
+    title: string
     /**
      * used to register menu into menu manager so you can open menu by ref
      * required for hot performant / simple hot reload
      */
     id?: string
-    title: string
     icon?: Maybe<IconName>
-    entries: (props: Props) => MenuEntry[]
+    entries: (props: Props, builder: MenuBuilder<any>) => MenuEntry[]
 }
 
 export type MenuID = Tagged<string, 'MenuID'>
 
 export class Menu<Props> {
     id: MenuID
-    get title() { return this.def.title } // prettier-ignore
+
+    get title(): string {
+        return this.def.title
+    }
+
     constructor(public def: MenuDef<Props>) {
         this.id = def.id ?? nanoid()
         menuManager.registerMenu(this)
     }
     UI = (p: { props: Props }): JSX.Element => createElement(MenuUI, { menu: useMemo(() => new MenuInstance(this, p.props), []) })
+
     DropDownUI = (p: { props: Props }): JSX.Element => createElement(MenuRootUI, { menu: useMemo(() => new MenuInstance(this, p.props), []) }) // prettier-ignore
 
     /** bind a menu to give props */
@@ -88,7 +78,11 @@ export class Menu<Props> {
 
 export class MenuWithoutProps {
     id: MenuID
-    get title() { return this.def.title } // prettier-ignore
+
+    get title(): string {
+        return this.def.title
+    }
+
     constructor(public def: MenuDef<NO_PROPS>) {
         this.id = def.id ?? nanoid()
         menuManager.registerMenu(this)
@@ -109,17 +103,18 @@ export class MenuWithoutProps {
 }
 
 export class MenuInstance<Props> implements Activity {
-    onStart = (): void => {}
+    onStart(): void {}
+    UI = (): JSX.Element => createElement(MenuUI, { menu: this })
+    onStop(): void {}
+    uid: string = nanoid()
 
-    UI = () => createElement(MenuUI, { menu: this })
     onEvent = (event: UIEvent): Trigger | null => {
         // event.stopImmediatePropagation()
         event.stopPropagation()
         event.preventDefault()
         return null
     }
-    onStop = (): void => {}
-    uid = nanoid()
+
     constructor(
         //
         public menu: Menu<Props>,
@@ -128,7 +123,7 @@ export class MenuInstance<Props> implements Activity {
     ) {}
 
     get entries(): MenuEntry[] {
-        return this.menu.def.entries(this.props)
+        return this.menu.def.entries(this.props, menuBuilder)
     }
 
     get entriesWithKb(): MenuEntryWithKey[] {
@@ -139,7 +134,10 @@ export class MenuInstance<Props> implements Activity {
         return this.acceleratedEntries.allocatedKeys
     }
 
-    private get acceleratedEntries() {
+    private get acceleratedEntries(): {
+        out: MenuEntryWithKey[]
+        allocatedKeys: Set<string>
+    } {
         const allocatedKeys = new Set<string>([...this.keysTaken])
         const out: MenuEntryWithKey[] = []
         for (const entry of this.entries) {
@@ -202,6 +200,6 @@ export class BoundMenu<Ctx = any, Props = any> {
         public props: Props,
         public ui?: BoundMenuOpts,
     ) {}
-    open = () => this.menu.open(this.props)
-    init = (keysTaken?: Set<string>) => new MenuInstance(this.menu, this.props, keysTaken)
+    open = (): Trigger | Promise<Trigger> => this.menu.open(this.props)
+    init = (keysTaken?: Set<string>): MenuInstance<Props> => new MenuInstance(this.menu, this.props, keysTaken)
 }

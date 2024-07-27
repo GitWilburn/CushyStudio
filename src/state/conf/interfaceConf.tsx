@@ -1,8 +1,8 @@
-import { cushyRepo } from '../../controls/Builder'
+import { cushyFactory } from '../../controls/Builder'
 import { WidgetWithLabelUI } from '../../csuite/form/WidgetWithLabelUI'
 import { readJSON, writeJSON } from '../jsonUtils'
 
-export const interfaceConf = cushyRepo.form(
+export const interfaceConf = cushyFactory.entity(
     (ui) =>
         ui.fields(
             {
@@ -40,6 +40,17 @@ export const interfaceConf = cushyRepo.form(
                     default: 48,
                     suffix: 'px',
                 }),
+                widgetHeight: ui.number({
+                    // label: false,
+                    // justifyLabel: false,
+                    text: 'Widget Height',
+                    tooltip: 'Height of the Widget line',
+                    min: 1.4,
+                    max: 3,
+                    default: 1.8,
+                    unit: 'rem',
+                    suffix: 'rem',
+                }),
                 inputHeight: ui.number({
                     label: false,
                     justifyLabel: false,
@@ -65,6 +76,10 @@ export const interfaceConf = cushyRepo.form(
                     tooltip: 'Show undo button near every field',
                     default: true,
                 }),
+                showWidgetFoldButtons: ui.boolean({
+                    tooltip: 'Show undo button near every field',
+                    default: true,
+                }),
                 showWidgetMenu: ui.boolean({
                     text: 'Widget Menu',
                     tooltip: 'Show action buttons at the bottom of the form',
@@ -85,31 +100,33 @@ export const interfaceConf = cushyRepo.form(
                 label: false,
                 collapsed: false,
                 body: (w) => {
-                    const f = w.widget.fields
+                    const f = w.field.fields
                     return (
                         <div
                             tw='flex flex-1 flex-grow flex-col gap-5' //TODO(bird_d): COMPONENT REPLACE: These "containers" should be replaced by a group component.
                         >
                             <div tw='flex w-full flex-1 flex-grow flex-col gap-1'>
-                                <WidgetWithLabelUI fieldName='' widget={f.toolBarIconSize} />
-                                <WidgetWithLabelUI fieldName='' widget={f.inputHeight} />
-                                <WidgetWithLabelUI fieldName='' widget={f.tooltipDelay} />
+                                <WidgetWithLabelUI fieldName='' field={f.toolBarIconSize} />
+                                <WidgetWithLabelUI fieldName='' field={f.widgetHeight} />
+                                <WidgetWithLabelUI fieldName='' field={f.inputHeight} />
+                                <WidgetWithLabelUI fieldName='' field={f.tooltipDelay} />
                             </div>
                             <div tw='flex w-full flex-1 flex-grow flex-col gap-1'>
-                                <WidgetWithLabelUI fieldName='' widget={f.tabSetEnableSingleTabStretch} label={false} />
-                                <WidgetWithLabelUI fieldName='' widget={f.useDefaultCursorEverywhere} label={false} />
+                                <WidgetWithLabelUI fieldName='' field={f.tabSetEnableSingleTabStretch} label={false} />
+                                <WidgetWithLabelUI fieldName='' field={f.useDefaultCursorEverywhere} label={false} />
                             </div>
                             <div tw='flex w-full flex-1 flex-grow flex-col gap-1'>
                                 {
                                     <WidgetWithLabelUI
                                         fieldName='// What does this even do lol, why is it mandatory?'
-                                        widget={f.showToggleButtonBox}
+                                        field={f.showToggleButtonBox}
                                         label='Show'
                                     />
                                 }
-                                {<WidgetWithLabelUI fieldName='' widget={f.showWidgetUndo} />}
-                                {<WidgetWithLabelUI fieldName='' widget={f.showWidgetMenu} />}
-                                {<WidgetWithLabelUI fieldName='' widget={f.showWidgetDiff} />}
+                                {f.showWidgetUndo.renderWithLabel({ fieldName: '' })}
+                                {f.showWidgetFoldButtons.renderWithLabel({ fieldName: 'showWidgetFoldButtons' })}
+                                {f.showWidgetMenu.renderWithLabel({ fieldName: '' })}
+                                {f.showWidgetDiff.renderWithLabel({ fieldName: '' })}
                             </div>
                         </div>
                     )
@@ -118,7 +135,7 @@ export const interfaceConf = cushyRepo.form(
         ),
     {
         name: 'Interface Config',
-        initialSerial: () => readJSON('settings/interface.json'),
+        serial: () => readJSON('settings/interface.json'),
         onSerialChange: (form) => writeJSON('settings/interface.json', form.serial),
     },
 )

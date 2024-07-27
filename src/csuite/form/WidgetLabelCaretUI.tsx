@@ -1,26 +1,32 @@
-import type { BaseField } from '../model/BaseField'
+import type { Field } from '../model/Field'
 
 import { observer } from 'mobx-react-lite'
 
 import { Ikon } from '../../csuite/icons/iconHelpers'
 
+export const LabelCaretWidth = '1rem'
+
 export const WidgetLabelCaretUI = observer(function WidgetLabelCaretUI_(p: {
     //
     className?: string
-    widget: BaseField
+    field: Field
 }) {
-    if (!p.widget.isCollapsed && !p.widget.isCollapsible)
+    if (!p.field.isCollapsed && !p.field.isCollapsible)
         return (
             <Ikon._
                 //
                 className={p.className}
-                tw='COLLAPSE-PASSTHROUGH shrink-0'
+                tw={[
+                    //
+                    'UI-WidgetLabelCaret self-start minh-widget ABDDE',
+                    'COLLAPSE-PASSTHROUGH shrink-0',
+                ]}
             />
         )
     return (
         <WidgetLabelCaretAlwaysUI //
             className={p.className}
-            isCollapsed={p.widget.isCollapsed}
+            isCollapsed={p.field.isCollapsed}
         />
     )
 })
@@ -35,17 +41,24 @@ export const WidgetLabelCaretAlwaysUI = observer(function WidgetLabelCaretAlways
     // 🔴 TODO: caret
     if (isCollapsed)
         return (
-            <Ikon.mdiChevronRight
-                //
+            <Ikon.mdiChevronRight //
                 className={className}
-                tw='COLLAPSE-PASSTHROUGH shrink-0'
+                tw={[
+                    //
+                    'UI-WidgetLabelCaret self-start minh-widget ABDDE',
+                    'COLLAPSE-PASSTHROUGH shrink-0',
+                ]}
             />
         )
     return (
         <Ikon.mdiChevronDown
             //
             className={className}
-            tw='COLLAPSE-PASSTHROUGH shrink-0'
+            tw={[
+                //
+                'UI-WidgetLabelCaret self-start minh-widget ABDDE',
+                'COLLAPSE-PASSTHROUGH shrink-0 opacity-35',
+            ]}
         />
     )
     // return (

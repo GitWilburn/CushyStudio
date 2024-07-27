@@ -1,4 +1,4 @@
-import type { Widget_enum_config } from '../csuite/fields/enum/WidgetEnum'
+import type { Field_enum_config } from '../csuite/fields/enum/FieldEnum'
 import type { FieldConfig } from '../csuite/model/FieldConfig'
 import type { Builder } from './Builder'
 
@@ -35,6 +35,7 @@ export function mkFormAutoBuilder(form: Builder): AutoBuilder {
             if (prop === 'isMobXComputedValue') return (target as any)[prop]
 
             // skip public form
+            // 🔴 ⁉️ REVIEW THIS LINE 👇
             if (prop === 'form') return (target as any)[prop]
 
             // known custom nodes
@@ -178,7 +179,7 @@ export class AutoBuilder {
                         // ENUMS ------------------------------------------
                         else if (field.isEnum) {
                             // console.log(`[👗] 🌈 Enum: ${field.type}`, { field })
-                            const enumFn: Maybe<(p: Widget_enum_config<any>) => void> = (formBuilder.enum as any)[field.type]
+                            const enumFn: Maybe<(p: Field_enum_config<any>) => void> = (formBuilder.enum as any)[field.type]
                             if (enumFn == null) {
                                 console.log(`[👗] ❌ Unknown enum: ${field.type}`)
                                 continue

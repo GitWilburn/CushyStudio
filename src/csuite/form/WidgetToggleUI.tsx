@@ -1,20 +1,25 @@
-import type { Widget_optional } from '../fields/optional/WidgetOptional'
-import type { BaseField } from '../model/BaseField'
+import type { Field_optional } from '../fields/optional/FieldOptional'
+import type { Field } from '../model/Field'
 
 import { observer } from 'mobx-react-lite'
 
 import { InputBoolUI } from '../checkbox/InputBoolUI'
-import { isWidgetOptional } from '../fields/WidgetUI.DI'
+import { isFieldOptional } from '../fields/WidgetUI.DI'
 
-export const WidgetToggleUI = observer(function WidgetToggleUI_(p: { className?: string; widget: BaseField }) {
-    if (!isWidgetOptional(p.widget)) return null
-    const widget = p.widget as Widget_optional
+export const WidgetToggleUI = observer(function WidgetToggleUI_(p: {
+    //
+    className?: string
+    field: Field
+}) {
+    if (!isFieldOptional(p.field)) return null
+    const field = p.field as Field_optional
     return (
         <InputBoolUI // toggle to activate/deactivate the optional widget
+            tw='UI-WidgetToggle self-stretch items-center'
             className={p.className}
-            value={widget.serial.active}
+            value={field.serial.active}
             expand={false}
-            onValueChange={(value) => widget.setActive(value)}
+            onValueChange={(value) => field.setActive(value)}
         />
     )
 })

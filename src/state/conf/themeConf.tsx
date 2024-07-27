@@ -1,7 +1,6 @@
-import type { BaseSelectEntry } from '../../csuite/fields/selectOne/WidgetSelectOne'
-import type { Entity } from '../../csuite/model/Entity'
+import type { BaseSelectEntry } from '../../csuite/fields/selectOne/FieldSelectOne'
 
-import { type Builder, cushyRepo } from '../../controls/Builder'
+import { cushyFactory } from '../../controls/Builder'
 import { ui_tint, type UI_Tint } from '../../csuite/kolor/prefab_Tint'
 import { readJSON, writeJSON } from '../jsonUtils'
 
@@ -25,7 +24,7 @@ export type ThemeConf = X.XGroup<{
     border: X.XOptional<X.XNumber>
 }>
 
-export const themeConf: Entity<ThemeConf, Builder, {}> = cushyRepo.form(
+export const themeConf: ThemeConf['$Field'] = cushyFactory.entity(
     (ui) =>
         ui.fields(
             {
@@ -42,8 +41,9 @@ export const themeConf: Entity<ThemeConf, Builder, {}> = cushyRepo.form(
                 base: ui.colorV2({
                     default: '#F4F5FB',
                     presets: [
-                        { icon: 'mdiLightSwitch', apply: (w) => (w.value = '#1E212B'), label: 'Dark' },
-                        { icon: 'mdiLightSwitch', apply: (w) => (w.value = '#F4F5FB'), label: 'Light' },
+                        { label: 'Dark', icon: 'mdiLightSwitch', apply: (w) => (w.value = '#1E212B') },
+                        { label: 'Light', icon: 'mdiLightSwitch', apply: (w) => (w.value = '#F4F5FB') },
+                        { label: 'Moonlight', icon: 'mdiMoonFull', apply: (w) => (w.value = 'oklch(32.1% 0.01 268.4)') },
                     ],
                 }),
                 appbar: ui.colorV2({ default: '#313338' }).optional(true),
@@ -79,7 +79,7 @@ export const themeConf: Entity<ThemeConf, Builder, {}> = cushyRepo.form(
         ),
     {
         name: 'theme config',
-        initialSerial: () => readJSON('settings/theme2.json'),
+        serial: () => readJSON('settings/theme2.json'),
         onSerialChange: (form) => writeJSON('settings/theme2.json', form.serial),
     },
 )

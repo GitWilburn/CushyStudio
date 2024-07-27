@@ -1,8 +1,8 @@
-import { type Builder, cushyRepo } from '../../controls/Builder'
+import { type Builder, cushyFactory } from '../../controls/Builder'
 import { readJSON, writeJSON } from '../../state/jsonUtils'
 
 // TODO: make per-panel instead
-export const PanelStepsConf = cushyRepo.form(
+export const PanelStepsConf = cushyFactory.entity(
     (ui) =>
         ui.fields(
             {
@@ -37,7 +37,7 @@ export const PanelStepsConf = cushyRepo.form(
         ),
     {
         name: 'panel-steps',
-        initialSerial: () => readJSON('settings/panel-steps-config.json'),
+        serial: () => readJSON('settings/panel-steps-config.json'),
         onSerialChange: (form) => writeJSON('settings/panel-steps-config.json', form.serial),
     },
 )

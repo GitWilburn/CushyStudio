@@ -31,8 +31,8 @@ export function ui_model(): UI_Model {
             {
                 label: 'withPopup',
                 icon: 'mdiTrain',
-                apply: (w) => {
-                    const form = cushy.forms.form((ui) =>
+                apply: (w): void => {
+                    const form = cushy.forms.entity((ui) =>
                         ui.fields({
                             a: ui.string({ label: 'A' }),
                             b: ui.int({ label: 'B' }),
@@ -52,9 +52,9 @@ export function ui_model(): UI_Model {
                 },
             },
             {
-                icon: 'mdiStairsBox',
-                label: 'test1',
-                apply: (w) => {
+                icon: 'mdiStar',
+                label: '(XL) albedobase21',
+                apply: (w): void => {
                     w.value = {
                         checkpointConfig: undefined,
                         ckpt_name: 'albedobaseXL_v21.safetensors',
@@ -63,9 +63,9 @@ export function ui_model(): UI_Model {
                 },
             },
             {
-                icon: 'mdiAccountMusic',
-                label: 'test2',
-                apply: (w) => {
+                icon: 'mdiStar',
+                label: '(1.5) revAnimated122',
+                apply: (w): void => {
                     w.setValue({
                         checkpointConfig: undefined,
                         ckpt_name: 'revAnimated_v122.safetensors',

@@ -1,5 +1,5 @@
 import type { Schema } from '../../src/controls/Schema'
-import type { Widget_group } from '../../src/csuite/fields/group/WidgetGroup'
+import type { Field_group } from '../../src/csuite/fields/group/FieldGroup'
 
 import { ui_cnet, type UI_cnet } from './_controlNet/prefab_cnet'
 import { ui_IPAdapterV2, type UI_IPAdapterV2 } from './_ipAdapter/prefab_ipAdapter_baseV2'
@@ -29,7 +29,7 @@ export type CushyDiffusionUI_ = {
     upscaleV2: X.XChoices<{
         highResFix: UI_HighResFix
         upscaleWithModel: Schema<
-            Widget_group<{
+            Field_group<{
                 model: X.XEnum<Enum_UpscaleModelLoader_model_name>
             }>
         >
@@ -106,15 +106,15 @@ function extra(ui: X.Builder): UI_extra {
             regionalPrompt: ui_regionalPrompting_v1(),
             refine: ui_refiners(),
             reversePositiveAndNegative: ui.empty({ label: 'swap +/-' }),
-            makeAVideo: ui.empty(),
-            summary: ui.empty(),
-            gaussianSplat: ui.empty(),
+            makeAVideo: ui.empty({ icon: 'mdiMessageVideo' }),
+            summary: ui.empty({ icon: 'mdiLanguageMarkdown' }),
+            gaussianSplat: ui.empty({ icon: 'mdiDotsHexagon' }),
             promtPlus: ui_advancedPrompt(),
-            displayAsBeerCan: ui.empty(),
-            displayAsSpriteSheet: ui.empty(),
+            displayAsBeerCan: ui.empty({ icon: 'mdiBeerOutline' }),
+            displayAsSpriteSheet: ui.empty({ icon: 'mdiMovie' }),
             recursiveImgToImg: ui_recursive(),
             watermark: ui_watermark_v1(),
-            fancyWatermark: ui.empty(),
+            fancyWatermark: ui.empty({ icon: 'mdiWatermark' }),
         },
     })
 }

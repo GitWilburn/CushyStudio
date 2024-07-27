@@ -17,20 +17,20 @@ export const useDelay = (
         delayMs == null //
             ? false
             : delayMs === 0
-              ? false
-              : true
+            ? false
+            : true
 
     const [delayed, setDelayed] = useState(defVal)
 
     useEffect(() => {
         if (_timeout != null) clearTimeout(_timeout)
         if (delayMs == null) return
-        _timeout = setTimeout(() => {
-            console.log('delayed')
+        _timeout = setTimeout((): void => {
+            // console.log('delayed')
             setDelayed(false)
         }, delayMs)
 
-        return () => {
+        return (): void => {
             setDelayed(defVal)
             if (_timeout != null) clearTimeout(_timeout)
         }

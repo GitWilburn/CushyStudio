@@ -18,6 +18,7 @@ export function ui_regionalPrompting_v1(): UI_regionalPrompting_v1 {
         }),
         height: 512,
         width: 512,
+        icon: 'mdiPictureInPictureTopRight',
         initialPosition: () => ({
             x: 0,
             y: 0,
@@ -41,10 +42,10 @@ export const run_regionalPrompting_v1 = (
     for (const square of ui.items) {
         const squareCond = graph.ConditioningSetArea({
             conditioning: graph.CLIPTextEncode({ clip: p.clip, text: square.value.prompt.text }),
-            height: square.position.height,
-            width: square.position.width,
-            x: square.position.x,
-            y: square.position.y,
+            height: square.shape.height,
+            width: square.shape.width,
+            x: square.shape.x,
+            y: square.shape.y,
             strength: square.value.strength,
         })
         // positive = graph.ConditioningBlend({
